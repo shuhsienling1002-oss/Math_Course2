@@ -6,81 +6,18 @@ from dataclasses import dataclass, field
 from typing import List, Tuple
 
 # ==========================================
-# 1. 頁面設定與 CSS (View Layer) - 絕對修正版
+# 1. 頁面設定與 CSS (完全參照您提供的 app.py 結構)
 # ==========================================
 st.set_page_config(page_title="分數乘除連鎖反應", page_icon="🧩", layout="centered")
 
 st.markdown("""
 <style>
-    /* 1. 全局強制深色背景 */
+    /* 全局背景 */
     .stApp { 
         background-color: #020617; 
         color: #f8fafc; 
     }
     
-    /* 2. Metric 數值與標籤 */
-    [data-testid="stMetricValue"] {
-        color: #ffffff !important;
-        font-family: 'Courier New', monospace !important;
-        font-weight: 700 !important;
-        text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
-    }
-    [data-testid="stMetricLabel"] {
-        color: #cbd5e1 !important;
-        font-weight: bold !important;
-        font-size: 1.1rem !important;
-    }
-
-    /* 3. Metric Delta (差值小字) */
-    [data-testid="stMetricDelta"] {
-        background-color: rgba(51, 65, 85, 0.8) !important;
-        border: 1px solid #475569 !important;
-        padding: 4px 8px !important;
-        border-radius: 6px !important;
-        width: fit-content !important;
-        margin-top: 5px !important;
-    }
-    [data-testid="stMetricDelta"] svg { fill: #facc15 !important; }
-    [data-testid="stMetricDelta"] > div { color: #f8fafc !important; font-weight: bold !important; }
-
-    /* =========================================================
-       4. 【絕對修正】按鈕文字顏色
-       ========================================================= */
-    
-    /* 設定按鈕背景為亮黃色 */
-    div.stButton > button {
-        background-color: #FFD700 !important; /* 純金黃 */
-        border: 2px solid #ffffff !important;
-        border-radius: 12px !important;
-        padding: 10px 0 !important;
-    }
-
-    /* 【關鍵】直接抓取按鈕內的 p 標籤，強制設為黑色 */
-    div.stButton > button p {
-        color: #000000 !important; /* 純黑 */
-        font-size: 28px !important; /* 字體加大 */
-        font-weight: 900 !important; /* 最粗體 */
-        font-family: 'Courier New', monospace !important;
-    }
-    
-    /* 針對可能存在的 div 或 span 也強制設為黑色 */
-    div.stButton > button div, 
-    div.stButton > button span {
-        color: #000000 !important;
-    }
-
-    /* 滑鼠懸停時，背景變白，字依然黑 */
-    div.stButton > button:hover {
-        background-color: #ffffff !important;
-        border-color: #FFD700 !important;
-        transform: scale(1.02);
-    }
-    div.stButton > button:hover p {
-        color: #000000 !important;
-    }
-
-    /* ========================================================= */
-
     /* 遊戲區塊容器 */
     .game-container {
         background: #1e293b;
@@ -91,7 +28,7 @@ st.markdown("""
         box-shadow: 0 10px 30px rgba(0,0,0,0.6);
     }
     
-    /* 進度條 */
+    /* 進度條背景 */
     .progress-track {
         background: #334155;
         height: 28px;
@@ -101,16 +38,22 @@ st.markdown("""
         margin: 25px 0;
         border: 1px solid #64748b;
     }
+    
+    /* 進度條本身 */
     .progress-fill {
         background: linear-gradient(90deg, #c084fc, #e879f9);
         height: 100%;
         transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
         box-shadow: 0 0 15px rgba(192, 132, 252, 0.5);
     }
+    
+    /* 警告色 */
     .progress-fill.warning {
         background: linear-gradient(90deg, #fca5a5, #ef4444);
         box-shadow: 0 0 15px rgba(239, 68, 68, 0.5);
     }
+    
+    /* 目標標記 */
     .target-marker {
         position: absolute;
         top: 0;
@@ -120,7 +63,59 @@ st.markdown("""
         z-index: 10;
         box-shadow: 0 0 10px #facc15;
     }
+
+    /* ============================================================
+       【關鍵修正】參照 app.py 的按鈕寫法
+       直接設定 color 為黑色，並移除 border 避免衝突
+       ============================================================ */
+    div.stButton > button {
+        background-color: #facc15 !important; /* 亮黃底 */
+        color: #000000 !important;            /* 純黑字 (參照您的檔案) */
+        border: none !important;              /* 移除邊框 (參照您的檔案) */
+        border-radius: 10px !important;
+        font-size: 24px !important;
+        font-weight: 900 !important;          /* 特粗 */
+        font-family: 'Courier New', monospace !important;
+        transition: all 0.2s !important;
+        padding: 15px 0 !important;
+    }
     
+    /* 滑鼠懸停效果 (參照 app.py 的位移效果) */
+    div.stButton > button:hover {
+        background-color: #fde047 !important;
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(250, 204, 21, 0.4);
+        color: #000000 !important; /* 確保懸停時也是黑色 */
+    }
+    
+    div.stButton > button:active {
+        transform: translateY(1px);
+    }
+    
+    /* 確保按鈕內的 p 標籤繼承顏色 (雙重保險) */
+    div.stButton > button p {
+        color: #000000 !important;
+    }
+    /* ============================================================ */
+    
+    /* Metric 樣式優化 */
+    [data-testid="stMetricValue"] {
+        color: #ffffff !important;
+        font-family: 'Courier New', monospace !important;
+        font-weight: 700 !important;
+    }
+    [data-testid="stMetricLabel"] {
+        color: #cbd5e1 !important;
+        font-weight: bold !important;
+    }
+    [data-testid="stMetricDelta"] {
+        background-color: rgba(51, 65, 85, 0.8) !important;
+        padding: 4px 8px !important;
+        border-radius: 6px !important;
+    }
+    [data-testid="stMetricDelta"] svg { fill: #facc15 !important; }
+    [data-testid="stMetricDelta"] > div { color: #f8fafc !important; }
+
     /* 數學推導區塊 */
     .math-steps {
         background-color: #0f172a;
