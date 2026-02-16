@@ -118,6 +118,7 @@ class MathCard:
         sign = "-" if (n * d < 0) else ""
         n, d = abs(n), abs(d)
         
+        # 使用雙反斜線 \\frac 避免 Python 轉義錯誤
         frac_str = f"\\frac{{{n}}}{{{d}}}"
         
         if self.is_division:
@@ -287,9 +288,10 @@ def main():
     current = AlchemyEngine.calculate_current(st.session_state.history)
     
     # 使用 LaTeX 顯示目標與當前值，增強數學直覺
+    # 【修復】使用雙反斜線 \\over 避免 SyntaxError
     c1, c2, c3 = st.columns([1, 0.2, 1])
     with c1:
-        st.markdown(f"### 🎯 目標 (Target)\n$${target.numerator \over target.denominator}$$")
+        st.markdown(f"### 🎯 目標 (Target)\n$${target.numerator} \\over {target.denominator}$$")
     with c2:
         # 狀態指示圖標
         icon = "⚖️"
@@ -298,7 +300,8 @@ def main():
         st.markdown(f"<div style='font-size:3rem; text-align:center; padding-top:20px'>{icon}</div>", unsafe_allow_html=True)
     with c3:
         color = "#4ade80" if current == target else "#facc15"
-        st.markdown(f"### 🧪 當前 (Current)\n$$\\color{{{color}}}{{{current.numerator \over current.denominator}}}$$")
+        # 【修復】使用雙反斜線 \\color 和 \\over
+        st.markdown(f"### 🧪 當前 (Current)\n$$\\color{{{color}}}{{{current.numerator} \\over {current.denominator}}}$$")
 
     # --- 狀態訊息 ---
     st.info(st.session_state.msg)
@@ -306,7 +309,8 @@ def main():
     # --- 算式鏈 (Equation Chain) - 核心視覺化 ---
     st.markdown("**📜 煉成公式 (Reaction Chain):**")
     latex_eq = AlchemyEngine.generate_equation_latex(st.session_state.history)
-    st.latex(f"{latex_eq} = {current.numerator \over current.denominator}")
+    # 【修復】使用雙反斜線 \\over
+    st.latex(f"{latex_eq} = {current.numerator} \\over {current.denominator}")
 
     # --- 遊戲區 (Play Area) ---
     if st.session_state.game_status == 'playing':
@@ -349,7 +353,8 @@ def main():
             st.write("你的計算路徑：")
             st.latex(latex_eq)
             st.write("這證明了：")
-            st.latex(f"{current.numerator \over current.denominator} \\text{{ (Current) }} \equiv {target.numerator \over target.denominator} \\text{{ (Target) }}")
+            # 【修復】使用雙反斜線 \\over, \\text, \\equiv
+            st.latex(f"{current.numerator} \\over {current.denominator} \\text{{ (Current) }} \\equiv {target.numerator} \\over {target.denominator} \\text{{ (Target) }}")
 
         if st.button("🚀 前往下一層 (Next Level)", type="primary", use_container_width=True):
             game.next_level()
