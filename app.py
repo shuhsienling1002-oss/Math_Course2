@@ -401,9 +401,8 @@ class GameEngine:
             den_spans += f"<span>{d}</span> × "
         den_spans = den_spans.rstrip(" × ") or "1"
         
-        # 【重要修正】這裡的 HTML 字串必須完全靠左，不能有縮排，否則會被當成程式碼區塊
-        html = f"""
-<div class="math-steps">
+        # 【重要修正】HTML 字串完全去縮排，防止被當成程式碼區塊顯示
+        html = f"""<div class="math-steps">
 <span class="math-step-title">💡 關鍵路徑解析：</span>
 <ul style="margin-bottom: 20px; color: #cbd5e1;">
 {step_html}
@@ -425,8 +424,7 @@ class GameEngine:
 (提示：上下的相同數字可以互相抵銷！)
 </div>
 </div>
-</div>
-"""
+</div>"""
         return html
 
     def next_level(self):
