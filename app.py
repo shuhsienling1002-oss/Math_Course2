@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import List, Tuple
 
 # ==========================================
-# 1. 頁面設定與 CSS (View Layer) - 按鈕文字強制顯色版
+# 1. 頁面設定與 CSS (View Layer) - 絕對黑字版
 # ==========================================
 st.set_page_config(page_title="分數乘除連鎖反應", page_icon="🧩", layout="centered")
 
@@ -18,7 +18,7 @@ st.markdown("""
         color: #f8fafc; 
     }
     
-    /* 2. Metric 數值與標籤優化 */
+    /* 2. Metric 數值與標籤 */
     [data-testid="stMetricValue"] {
         color: #ffffff !important;
         font-family: 'Courier New', monospace !important;
@@ -31,7 +31,7 @@ st.markdown("""
         font-size: 1.1rem !important;
     }
 
-    /* 3. Metric Delta (差值小字) 可視化背板 */
+    /* 3. Metric Delta (差值小字) */
     [data-testid="stMetricDelta"] {
         background-color: rgba(51, 65, 85, 0.8) !important;
         border: 1px solid #475569 !important;
@@ -43,31 +43,42 @@ st.markdown("""
     [data-testid="stMetricDelta"] svg { fill: #facc15 !important; }
     [data-testid="stMetricDelta"] > div { color: #f8fafc !important; font-weight: bold !important; }
 
-    /* 4. 【核心修復】按鈕樣式 - 強制黑字黃底 */
-    div.stButton > button {
-        background-color: #facc15 !important; /* 亮黃色背景 */
-        border: 2px solid #fbbf24 !important;
-        border-radius: 12px !important;
-        padding: 15px 0 !important; /* 增加高度 */
-    }
+    /* =========================================================
+       4. 【核彈級修復】按鈕文字強制全黑
+       ========================================================= */
     
-    /* 這裡就是關鍵：強制按鈕內的所有文字 (p tag) 變成純黑 */
-    div.stButton > button p {
-        color: #000000 !important; /* 純黑文字 */
-        font-size: 26px !important; /* 字體加大 */
-        font-weight: 900 !important; /* 特粗 */
+    /* 第一層：鎖定按鈕本體 */
+    div.stButton > button {
+        background-color: #facc15 !important; /* 亮黃底 */
+        border: 2px solid #fbbf24 !important;
+        color: #000000 !important; /* 設定第一層文字為黑 */
+    }
+
+    /* 第二層：鎖定按鈕內的所有子元素 (p, div, span) */
+    div.stButton > button * {
+        color: #000000 !important;
+        fill: #000000 !important;
+        -webkit-text-fill-color: #000000 !important; /* 強制 Webkit 內核填充黑色 */
+        font-weight: 900 !important; /* 特粗體 */
+        font-size: 24px !important;
         font-family: 'Courier New', monospace !important;
     }
-    
-    /* 滑鼠懸停效果 */
+
+    /* 滑鼠懸停狀態：依然全黑 */
     div.stButton > button:hover {
-        background-color: #fde047 !important; /* 更亮的黃 */
+        background-color: #fde047 !important;
         border-color: #ffffff !important;
-        transform: scale(1.02);
     }
-    div.stButton > button:hover p {
-        color: #000000 !important; /* 懸停時依然保持純黑 */
+    div.stButton > button:hover * {
+        color: #000000 !important;
     }
+    
+    /* 點擊狀態：依然全黑 */
+    div.stButton > button:active * {
+        color: #000000 !important;
+    }
+
+    /* ========================================================= */
 
     /* 遊戲區塊容器 */
     .game-container {
