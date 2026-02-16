@@ -154,7 +154,7 @@ class AlchemyEngine:
         }
         cfg = config.get(level, config[5])
         
-        # 1. 生成目標路徑 (保證有解)
+        # 1. 生成目標路徑 (保證有解 - 逆向工程法)
         target_val = Fraction(1, 1)
         correct_cards = []
         
@@ -296,7 +296,7 @@ def main():
     current = AlchemyEngine.calculate_current(st.session_state.history)
     
     # 使用 LaTeX 顯示目標與當前值
-    # 【修正 1】使用 \\Huge 放大字體
+    # 【修正 1】使用 \\Huge 放大字體，標題改中文
     c1, c2, c3 = st.columns([1, 0.2, 1])
     with c1:
         st.markdown(f"### 🎯 目標 (Target)\n$$\\Huge \\frac{{{target.numerator}}}{{{target.denominator}}}$$")
@@ -308,7 +308,7 @@ def main():
         st.markdown(f"<div style='font-size:3rem; text-align:center; padding-top:20px'>{icon}</div>", unsafe_allow_html=True)
     with c3:
         color = "#4ade80" if current == target else "#facc15"
-        # 【修正 1】使用 \\Huge 放大字體
+        # 【修正 1】使用 \\Huge 放大字體，標題改中文
         st.markdown(f"### 🧪 當前 (Current)\n$$\\Huge \\color{{{color}}}{{\\frac{{{current.numerator}}}{{{current.denominator}}}}}$$")
 
     # --- 狀態訊息 (修正對比度) ---
@@ -343,7 +343,7 @@ def main():
         # 功能區
         st.markdown("---")
         if st.session_state.history:
-            if st.button("↩️ 撤銷上一步 (Undo)", type="secondary"):
+            if st.button("↩️ 復原上一步 (Undo)", type="secondary"):
                 game.undo()
                 st.rerun()
 
@@ -351,26 +351,26 @@ def main():
     elif st.session_state.game_status == 'won':
         st.markdown("""
         <div class="victory-modal">
-            <h2>🎉 煉成成功！ (Synthesis Complete)</h2>
+            <h2>🎉 煉成成功！</h2>
             <p>你完美平衡了分子與分母的熵值。</p>
         </div>
         """, unsafe_allow_html=True)
         
         # 詳細的約分過程展示 (Pedagogical Reinforcement)
-        with st.expander("🔍 查看反應原理 (Step-by-Step)", expanded=True):
+        with st.expander("🔍 查看反應原理 (逐步解析)", expanded=True):
             st.write("你的計算路徑：")
             st.latex(latex_eq)
             st.write("這證明了：")
             # 使用 underbrace (下括號) 與標準等號，更直觀
-            st.latex(f"\\underbrace{{\\frac{{{current.numerator}}}{{{current.denominator}}}}}_{{\\text{{當前數值 (Current)}}}} = \\underbrace{{\\frac{{{target.numerator}}}{{{target.denominator}}}}}_{{\\text{{目標數值 (Target)}}}}")
+            st.latex(f"\\underbrace{{\\frac{{{current.numerator}}}{{{current.denominator}}}}}_{{\\text{{當前數值}}}} = \\underbrace{{\\frac{{{target.numerator}}}{{{target.denominator}}}}}_{{\\text{{目標數值}}}}")
 
-        if st.button("🚀 前往下一層 (Next Level)", type="primary", use_container_width=True):
+        if st.button("🚀 前往下一關", type="primary", use_container_width=True):
             game.next_level()
             st.rerun()
 
     elif st.session_state.game_status == 'lost':
         st.error("💥 實驗失敗：無法合成目標元素。")
-        if st.button("🔄 重新實驗 (Retry)", type="primary", use_container_width=True):
+        if st.button("🔄 重新實驗", type="primary", use_container_width=True):
             game.retry()
             st.rerun()
 
