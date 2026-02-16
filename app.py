@@ -19,6 +19,27 @@ st.markdown("""
     /* 全局暗色系實驗室風格 */
     .stApp { background-color: #0f172a; color: #e2e8f0; }
     
+    /* 修正：增強 Caption (頂部關卡資訊) 的對比度 */
+    .stCaption {
+        color: #94a3b8 !important;
+        font-size: 1rem !important;
+        font-weight: bold !important;
+    }
+
+    /* 修正：自定義訊息欄 (取代 st.info 的預設樣式) */
+    .custom-info-box {
+        background-color: rgba(56, 189, 248, 0.1); /* 淡藍背景 */
+        border: 1px solid #38bdf8; /* 亮藍邊框 */
+        color: #e0f2fe; /* 極亮白藍文字 */
+        padding: 15px;
+        border-radius: 8px;
+        text-align: center;
+        font-size: 1.2rem;
+        font-weight: bold;
+        margin-bottom: 20px;
+        box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
+    }
+
     /* 頂部狀態欄 */
     .status-bar {
         background: #1e293b;
@@ -56,19 +77,6 @@ st.markdown("""
     .division-card > button {
         background: linear-gradient(145deg, #ec4899, #db2777) !important;
         box-shadow: 0 4px 0 #be185d !important;
-    }
-
-    /* 算式顯示區 */
-    .equation-box {
-        background: #020617;
-        padding: 20px;
-        border-radius: 10px;
-        border-left: 5px solid #facc15;
-        font-family: 'Times New Roman', serif;
-        font-size: 1.5rem;
-        text-align: center;
-        margin: 20px 0;
-        overflow-x: auto;
     }
 
     /* 勝利結算區 */
@@ -287,11 +295,11 @@ def main():
     target = st.session_state.target
     current = AlchemyEngine.calculate_current(st.session_state.history)
     
-    # 使用 LaTeX 顯示目標與當前值，增強數學直覺
-    # 【修復】使用雙反斜線 \\frac 避免 SyntaxError
+    # 使用 LaTeX 顯示目標與當前值
+    # 【修正 1】使用 \\Huge 放大字體
     c1, c2, c3 = st.columns([1, 0.2, 1])
     with c1:
-        st.markdown(f"### 🎯 目標 (Target)\n$$\\frac{{{target.numerator}}}{{{target.denominator}}}$$")
+        st.markdown(f"### 🎯 目標 (Target)\n$$\\Huge \\frac{{{target.numerator}}}{{{target.denominator}}}$$")
     with c2:
         # 狀態指示圖標
         icon = "⚖️"
@@ -300,16 +308,16 @@ def main():
         st.markdown(f"<div style='font-size:3rem; text-align:center; padding-top:20px'>{icon}</div>", unsafe_allow_html=True)
     with c3:
         color = "#4ade80" if current == target else "#facc15"
-        # 【修復】使用雙反斜線 \\color 和 \\frac
-        st.markdown(f"### 🧪 當前 (Current)\n$$\\color{{{color}}}{{\\frac{{{current.numerator}}}{{{current.denominator}}}}}$$")
+        # 【修正 1】使用 \\Huge 放大字體
+        st.markdown(f"### 🧪 當前 (Current)\n$$\\Huge \\color{{{color}}}{{\\frac{{{current.numerator}}}{{{current.denominator}}}}}$$")
 
-    # --- 狀態訊息 ---
-    st.info(st.session_state.msg)
+    # --- 狀態訊息 (修正對比度) ---
+    # 【修正 2】使用自定義 HTML div 替代 st.info，確保高對比度
+    st.markdown(f'<div class="custom-info-box">{st.session_state.msg}</div>', unsafe_allow_html=True)
 
     # --- 算式鏈 (Equation Chain) - 核心視覺化 ---
     st.markdown("**📜 煉成公式 (Reaction Chain):**")
     latex_eq = AlchemyEngine.generate_equation_latex(st.session_state.history)
-    # 【修復】使用雙反斜線 \\frac
     st.latex(f"{latex_eq} = \\frac{{{current.numerator}}}{{{current.denominator}}}")
 
     # --- 遊戲區 (Play Area) ---
@@ -353,7 +361,7 @@ def main():
             st.write("你的計算路徑：")
             st.latex(latex_eq)
             st.write("這證明了：")
-            # 【修復】使用 underbrace (下括號) 與標準等號，更直觀
+            # 使用 underbrace (下括號) 與標準等號，更直觀
             st.latex(f"\\underbrace{{\\frac{{{current.numerator}}}{{{current.denominator}}}}}_{{\\text{{當前數值 (Current)}}}} = \\underbrace{{\\frac{{{target.numerator}}}{{{target.denominator}}}}}_{{\\text{{目標數值 (Target)}}}}")
 
         if st.button("🚀 前往下一層 (Next Level)", type="primary", use_container_width=True):
