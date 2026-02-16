@@ -6,19 +6,19 @@ from dataclasses import dataclass, field
 from typing import List, Tuple
 
 # ==========================================
-# 1. 頁面設定與 CSS (View Layer) - 終極高對比修正
+# 1. 頁面設定與 CSS (View Layer) - 絕對可視化修正
 # ==========================================
 st.set_page_config(page_title="分數乘除連鎖反應", page_icon="🧩", layout="centered")
 
 st.markdown("""
 <style>
-    /* 1. 全局強制深色背景與淺色文字 */
+    /* 1. 全局強制深色背景 */
     .stApp { 
         background-color: #020617; 
         color: #f8fafc; 
     }
     
-    /* 2. 核心修復：強制 Streamlit Metric (大數字) 變為純白 */
+    /* 2. Metric 大數字：強制純白 */
     [data-testid="stMetricValue"] {
         color: #ffffff !important;
         font-family: 'Courier New', monospace !important;
@@ -26,11 +26,33 @@ st.markdown("""
         text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
     }
     
-    /* 3. 核心修復：強制 Metric 標籤 (Label) 變為亮灰 */
+    /* 3. Metric 標籤：強制亮灰 */
     [data-testid="stMetricLabel"] {
         color: #cbd5e1 !important;
         font-weight: bold !important;
         font-size: 1.1rem !important;
+    }
+
+    /* 4. 【關鍵修復】Metric Delta (差值小字)：強制高亮 */
+    /* 無論是正數、負數還是 inverse，全部強制重寫 */
+    [data-testid="stMetricDelta"] {
+        background-color: rgba(51, 65, 85, 0.5) !important; /* 增加半透明深灰背板 */
+        border: 1px solid #475569 !important;
+        padding: 4px 8px !important;
+        border-radius: 6px !important;
+        width: fit-content !important;
+        margin-top: 5px !important;
+    }
+    
+    /* 強制箭頭顏色為亮黃 */
+    [data-testid="stMetricDelta"] svg {
+        fill: #facc15 !important; 
+    }
+    
+    /* 強制文字顏色為亮白 */
+    [data-testid="stMetricDelta"] > div {
+        color: #f8fafc !important;
+        font-weight: bold !important;
     }
 
     /* 遊戲區塊容器 */
@@ -78,7 +100,7 @@ st.markdown("""
         box-shadow: 0 0 10px #facc15;
     }
 
-    /* 卡片按鈕 - 亮黃底黑字 */
+    /* 卡片按鈕 */
     div.stButton > button {
         background-color: #facc15 !important;
         color: #020617 !important;
@@ -147,11 +169,11 @@ st.markdown("""
     .fraction > span {
         display: block;
         padding: 2px 8px;
-        color: #ffffff; /* 強制純白 */
+        color: #ffffff; 
     }
     
     .fraction span.bottom {
-        border-top: 3px solid #ffffff; /* 強制純白線 */
+        border-top: 3px solid #ffffff; 
         margin-top: 2px;
     }
     
