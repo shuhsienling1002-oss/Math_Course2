@@ -6,16 +6,34 @@ from dataclasses import dataclass, field
 from typing import List, Tuple
 
 # ==========================================
-# 1. 頁面設定與 CSS (View Layer) - 高對比修正版
+# 1. 頁面設定與 CSS (View Layer) - 終極高對比修正
 # ==========================================
 st.set_page_config(page_title="分數乘除連鎖反應", page_icon="🧩", layout="centered")
 
 st.markdown("""
 <style>
-    /* 全局背景：深空藍 */
-    .stApp { background-color: #020617; color: #f8fafc; }
+    /* 1. 全局強制深色背景與淺色文字 */
+    .stApp { 
+        background-color: #020617; 
+        color: #f8fafc; 
+    }
     
-    /* 遊戲區塊容器：深色卡片 */
+    /* 2. 核心修復：強制 Streamlit Metric (大數字) 變為純白 */
+    [data-testid="stMetricValue"] {
+        color: #ffffff !important;
+        font-family: 'Courier New', monospace !important;
+        font-weight: 700 !important;
+        text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+    }
+    
+    /* 3. 核心修復：強制 Metric 標籤 (Label) 變為亮灰 */
+    [data-testid="stMetricLabel"] {
+        color: #cbd5e1 !important;
+        font-weight: bold !important;
+        font-size: 1.1rem !important;
+    }
+
+    /* 遊戲區塊容器 */
     .game-container {
         background: #1e293b;
         border-radius: 16px;
@@ -28,7 +46,7 @@ st.markdown("""
     /* 進度條軌道 */
     .progress-track {
         background: #334155;
-        height: 28px; /* 加高 */
+        height: 28px;
         border-radius: 14px;
         position: relative;
         overflow: hidden;
@@ -36,7 +54,7 @@ st.markdown("""
         border: 1px solid #64748b;
     }
     
-    /* 進度條填充 - 霓虹紫 */
+    /* 進度條填充 */
     .progress-fill {
         background: linear-gradient(90deg, #c084fc, #e879f9);
         height: 100%;
@@ -44,13 +62,12 @@ st.markdown("""
         box-shadow: 0 0 15px rgba(192, 132, 252, 0.5);
     }
     
-    /* 警告色條 */
     .progress-fill.warning {
         background: linear-gradient(90deg, #fca5a5, #ef4444);
         box-shadow: 0 0 15px rgba(239, 68, 68, 0.5);
     }
     
-    /* 目標標記 - 亮黃色 */
+    /* 目標標記 */
     .target-marker {
         position: absolute;
         top: 0;
@@ -61,14 +78,14 @@ st.markdown("""
         box-shadow: 0 0 10px #facc15;
     }
 
-    /* 卡片按鈕優化 - 高對比設計 */
+    /* 卡片按鈕 - 亮黃底黑字 */
     div.stButton > button {
-        background-color: #facc15 !important; /* 亮黃色背景 */
-        color: #020617 !important; /* 深黑色文字 */
+        background-color: #facc15 !important;
+        color: #020617 !important;
         border: 2px solid #fbbf24 !important;
         border-radius: 10px !important;
         font-size: 24px !important;
-        font-weight: 900 !important; /* 特粗體 */
+        font-weight: 900 !important;
         transition: all 0.1s !important;
         font-family: 'Courier New', monospace;
         padding: 10px 0 !important;
@@ -78,17 +95,14 @@ st.markdown("""
         transform: translateY(-4px) scale(1.02);
         box-shadow: 0 8px 20px rgba(250, 204, 21, 0.4);
     }
-    div.stButton > button:active {
-        transform: translateY(2px);
-    }
     
     /* 數學推導區塊 */
     .math-steps {
-        background-color: #0f172a; /* 更深的背景 */
+        background-color: #0f172a;
         padding: 25px;
         border-radius: 12px;
         border: 1px solid #334155;
-        border-left: 6px solid #22d3ee; /* 亮青色邊條 */
+        border-left: 6px solid #22d3ee;
         margin-top: 20px;
         font-family: 'Courier New', monospace;
         color: #f1f5f9;
@@ -97,11 +111,10 @@ st.markdown("""
     }
     .math-step-title {
         font-weight: bold;
-        color: #22d3ee; /* 亮青色標題 */
+        color: #22d3ee;
         margin-bottom: 15px;
         display: block;
         font-size: 1.2rem;
-        text-shadow: 0 0 5px rgba(34, 211, 238, 0.3);
     }
     
     /* 視覺化約分區塊 */
@@ -118,7 +131,7 @@ st.markdown("""
         align-items: center;
         justify-content: center;
         gap: 15px;
-        font-size: 1.8rem; /* 字體加大 */
+        font-size: 1.8rem;
         flex-wrap: wrap;
         margin: 15px 0;
         font-weight: bold;
@@ -134,28 +147,16 @@ st.markdown("""
     .fraction > span {
         display: block;
         padding: 2px 8px;
-        color: #ffffff; /* 純白數字 */
+        color: #ffffff; /* 強制純白 */
     }
     
-    /* 分數線 - 加粗加亮 */
     .fraction span.bottom {
-        border-top: 3px solid #ffffff; 
+        border-top: 3px solid #ffffff; /* 強制純白線 */
         margin-top: 2px;
     }
     
-    /* 等號 */
-    .equals-sign {
-        color: #94a3b8;
-        font-size: 2rem;
-    }
-    
-    /* 最終結果 */
-    .final-result {
-        color: #4ade80; /* 亮綠色 */
-        font-weight: 900;
-        font-size: 2.2rem;
-        text-shadow: 0 0 15px rgba(74, 222, 128, 0.4);
-    }
+    .equals-sign { color: #94a3b8; font-size: 2rem; }
+    .final-result { color: #4ade80; font-weight: 900; font-size: 2.2rem; }
     
     /* 狀態訊息 */
     .status-msg {
@@ -172,7 +173,7 @@ st.markdown("""
     
     /* 標籤文字 */
     .label-text {
-        color: #cbd5e1; /* 淺灰 */
+        color: #cbd5e1;
         font-weight: bold;
         font-size: 1rem;
     }
@@ -202,7 +203,6 @@ class Card:
 
     @property
     def display(self) -> str:
-        # 符號處理
         op_icon = "➗" if self.is_division else "✖️"
         n, d = self.numerator, self.denominator
         if n < 0 and d < 0: n, d = abs(n), abs(d)
