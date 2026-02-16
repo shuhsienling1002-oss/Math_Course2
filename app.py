@@ -9,7 +9,7 @@ from typing import List, Tuple, Optional
 # 1. 核心配置與 CSS (UI/UX-CRF)
 # ==========================================
 st.set_page_config(
-    page_title="Zero-Entropy: 分數鍊金術",
+    page_title="分數鍊金術",
     page_icon="⚗️",
     layout="centered"
 )
@@ -97,7 +97,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. 領域模型 (Domain Model - Zero-Entropy Math)
+# 2. 領域模型 (Domain Model)
 # ==========================================
 
 @dataclass
@@ -231,7 +231,7 @@ class GameState:
         st.session_state.level_title = data['title']
         st.session_state.history = []
         st.session_state.game_status = 'playing'
-        st.session_state.msg = f"Level {level}: {data['title']}"
+        st.session_state.msg = f"第 {level} 關：{data['title']}"
 
     def play_card(self, card_idx):
         hand = st.session_state.hand
@@ -260,11 +260,11 @@ class GameState:
         else:
             # 提供 Scaffolding (鷹架) 提示
             if (current > 0 > target) or (current < 0 < target):
-                st.session_state.msg = "⚠️ 警告：極性(正負)相反！"
+                st.session_state.msg = "⚠️ 警告：符號(正負)相反！"
             elif abs(current) > abs(target):
-                st.session_state.msg = "📉 提示：數值過大，需要收縮"
+                st.session_state.msg = "📉 提示：數值過大，需要變小"
             elif abs(current) < abs(target):
-                st.session_state.msg = "📈 提示：數值過小，需要擴張"
+                st.session_state.msg = "📈 提示：數值過小，需要變大"
             else:
                 st.session_state.msg = "⚗️ 反應進行中..."
 
@@ -284,7 +284,7 @@ def main():
     # --- Header Area ---
     col1, col2 = st.columns([3, 1])
     with col1:
-        st.title("⚗️ Zero-Entropy: 分數鍊金術")
+        st.title("⚗️ 分數鍊金術")
     with col2:
         st.caption(f"當前關卡: {st.session_state.level}")
         if st.button("🔄 重置"):
@@ -296,10 +296,10 @@ def main():
     current = AlchemyEngine.calculate_current(st.session_state.history)
     
     # 使用 LaTeX 顯示目標與當前值
-    # 【修正 1】使用 \\Huge 放大字體，標題改中文
+    # 【修正】標題全中文，字體放大
     c1, c2, c3 = st.columns([1, 0.2, 1])
     with c1:
-        st.markdown(f"### 🎯 目標 (Target)\n$$\\Huge \\frac{{{target.numerator}}}{{{target.denominator}}}$$")
+        st.markdown(f"### 🎯 目標數值\n$$\\Huge \\frac{{{target.numerator}}}{{{target.denominator}}}$$")
     with c2:
         # 狀態指示圖標
         icon = "⚖️"
@@ -308,15 +308,14 @@ def main():
         st.markdown(f"<div style='font-size:3rem; text-align:center; padding-top:20px'>{icon}</div>", unsafe_allow_html=True)
     with c3:
         color = "#4ade80" if current == target else "#facc15"
-        # 【修正 1】使用 \\Huge 放大字體，標題改中文
-        st.markdown(f"### 🧪 當前 (Current)\n$$\\Huge \\color{{{color}}}{{\\frac{{{current.numerator}}}{{{current.denominator}}}}}$$")
+        # 【修正】標題全中文，字體放大
+        st.markdown(f"### 🧪 當前數值\n$$\\Huge \\color{{{color}}}{{\\frac{{{current.numerator}}}{{{current.denominator}}}}}$$")
 
-    # --- 狀態訊息 (修正對比度) ---
-    # 【修正 2】使用自定義 HTML div 替代 st.info，確保高對比度
+    # --- 狀態訊息 ---
     st.markdown(f'<div class="custom-info-box">{st.session_state.msg}</div>', unsafe_allow_html=True)
 
-    # --- 算式鏈 (Equation Chain) - 核心視覺化 ---
-    st.markdown("**📜 煉成公式 (Reaction Chain):**")
+    # --- 算式鏈 (Equation Chain) ---
+    st.markdown("**📜 煉成公式：**")
     latex_eq = AlchemyEngine.generate_equation_latex(st.session_state.history)
     st.latex(f"{latex_eq} = \\frac{{{current.numerator}}}{{{current.denominator}}}")
 
@@ -343,7 +342,7 @@ def main():
         # 功能區
         st.markdown("---")
         if st.session_state.history:
-            if st.button("↩️ 復原上一步 (Undo)", type="secondary"):
+            if st.button("↩️ 復原上一步", type="secondary"):
                 game.undo()
                 st.rerun()
 
@@ -352,16 +351,16 @@ def main():
         st.markdown("""
         <div class="victory-modal">
             <h2>🎉 煉成成功！</h2>
-            <p>你完美平衡了分子與分母的熵值。</p>
+            <p>你完美平衡了分子與分母。</p>
         </div>
         """, unsafe_allow_html=True)
         
-        # 詳細的約分過程展示 (Pedagogical Reinforcement)
+        # 詳細的約分過程展示
         with st.expander("🔍 查看反應原理 (逐步解析)", expanded=True):
             st.write("你的計算路徑：")
             st.latex(latex_eq)
             st.write("這證明了：")
-            # 使用 underbrace (下括號) 與標準等號，更直觀
+            # 使用 underbrace (下括號) 與標準等號
             st.latex(f"\\underbrace{{\\frac{{{current.numerator}}}{{{current.denominator}}}}}_{{\\text{{當前數值}}}} = \\underbrace{{\\frac{{{target.numerator}}}{{{target.denominator}}}}}_{{\\text{{目標數值}}}}")
 
         if st.button("🚀 前往下一關", type="primary", use_container_width=True):
