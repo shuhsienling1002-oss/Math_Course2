@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import List, Tuple
 
 # ==========================================
-# 1. 頁面設定與 CSS (完全參照您提供的 app.py 結構)
+# 1. 頁面設定與 CSS
 # ==========================================
 st.set_page_config(page_title="分數乘除連鎖反應", page_icon="🧩", layout="centered")
 
@@ -64,41 +64,35 @@ st.markdown("""
         box-shadow: 0 0 10px #facc15;
     }
 
-    /* ============================================================
-       【關鍵修正】參照 app.py 的按鈕寫法
-       直接設定 color 為黑色，並移除 border 避免衝突
-       ============================================================ */
+    /* 按鈕樣式 - 強制黑字黃底 */
     div.stButton > button {
-        background-color: #facc15 !important; /* 亮黃底 */
-        color: #000000 !important;            /* 純黑字 (參照您的檔案) */
-        border: none !important;              /* 移除邊框 (參照您的檔案) */
+        background-color: #facc15 !important;
+        color: #000000 !important;
+        border: none !important;
         border-radius: 10px !important;
         font-size: 24px !important;
-        font-weight: 900 !important;          /* 特粗 */
+        font-weight: 900 !important;
         font-family: 'Courier New', monospace !important;
         transition: all 0.2s !important;
         padding: 15px 0 !important;
     }
     
-    /* 滑鼠懸停效果 (參照 app.py 的位移效果) */
     div.stButton > button:hover {
         background-color: #fde047 !important;
         transform: translateY(-3px);
         box-shadow: 0 8px 20px rgba(250, 204, 21, 0.4);
-        color: #000000 !important; /* 確保懸停時也是黑色 */
+        color: #000000 !important;
     }
     
     div.stButton > button:active {
         transform: translateY(1px);
     }
     
-    /* 確保按鈕內的 p 標籤繼承顏色 (雙重保險) */
     div.stButton > button p {
         color: #000000 !important;
     }
-    /* ============================================================ */
     
-    /* Metric 樣式優化 */
+    /* Metric 樣式 */
     [data-testid="stMetricValue"] {
         color: #ffffff !important;
         font-family: 'Courier New', monospace !important;
@@ -407,32 +401,30 @@ class GameEngine:
             den_spans += f"<span>{d}</span> × "
         den_spans = den_spans.rstrip(" × ") or "1"
         
+        # 【重要修正】這裡的 HTML 字串必須完全靠左，不能有縮排，否則會被當成程式碼區塊
         html = f"""
 <div class="math-steps">
-    <span class="math-step-title">💡 關鍵路徑解析：</span>
-    <ul style="margin-bottom: 20px; color: #cbd5e1;">
-        {step_html}
-    </ul>
-    
-    <span class="math-step-title">🔍 約分視覺化 (Cancellation)：</span>
-    <div class="cancellation-wrapper">
-        <div style="font-size: 1rem; margin-bottom: 10px; color: #94a3b8;">分子乘分子 / 分母乘分母</div>
-        
-        <div class="cancellation-box">
-            <div class="fraction">
-                <span class="top">{num_spans}</span>
-                <span class="bottom">{den_spans}</span>
-            </div>
-            <div class="equals-sign">=</div>
-            <div class="final-result">
-                {final_res.numerator}/{final_res.denominator}
-            </div>
-        </div>
-        
-        <div style="font-size: 0.9rem; color: #64748b; margin-top: 10px;">
-            (提示：上下的相同數字可以互相抵銷！)
-        </div>
-    </div>
+<span class="math-step-title">💡 關鍵路徑解析：</span>
+<ul style="margin-bottom: 20px; color: #cbd5e1;">
+{step_html}
+</ul>
+<span class="math-step-title">🔍 約分視覺化 (Cancellation)：</span>
+<div class="cancellation-wrapper">
+<div style="font-size: 1rem; margin-bottom: 10px; color: #94a3b8;">分子乘分子 / 分母乘分母</div>
+<div class="cancellation-box">
+<div class="fraction">
+<span class="top">{num_spans}</span>
+<span class="bottom">{den_spans}</span>
+</div>
+<div class="equals-sign">=</div>
+<div class="final-result">
+{final_res.numerator}/{final_res.denominator}
+</div>
+</div>
+<div style="font-size: 0.9rem; color: #64748b; margin-top: 10px;">
+(提示：上下的相同數字可以互相抵銷！)
+</div>
+</div>
 </div>
 """
         return html
