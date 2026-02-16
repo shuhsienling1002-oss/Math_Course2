@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import List, Tuple
 
 # ==========================================
-# 1. 頁面設定與 CSS (View Layer) - 絕對可視化修正
+# 1. 頁面設定與 CSS (View Layer) - 按鈕文字強制顯色版
 # ==========================================
 st.set_page_config(page_title="分數乘除連鎖反應", page_icon="🧩", layout="centered")
 
@@ -18,41 +18,55 @@ st.markdown("""
         color: #f8fafc; 
     }
     
-    /* 2. Metric 大數字：強制純白 */
+    /* 2. Metric 數值與標籤優化 */
     [data-testid="stMetricValue"] {
         color: #ffffff !important;
         font-family: 'Courier New', monospace !important;
         font-weight: 700 !important;
         text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
     }
-    
-    /* 3. Metric 標籤：強制亮灰 */
     [data-testid="stMetricLabel"] {
         color: #cbd5e1 !important;
         font-weight: bold !important;
         font-size: 1.1rem !important;
     }
 
-    /* 4. 【關鍵修復】Metric Delta (差值小字)：強制高亮 */
-    /* 無論是正數、負數還是 inverse，全部強制重寫 */
+    /* 3. Metric Delta (差值小字) 可視化背板 */
     [data-testid="stMetricDelta"] {
-        background-color: rgba(51, 65, 85, 0.5) !important; /* 增加半透明深灰背板 */
+        background-color: rgba(51, 65, 85, 0.8) !important;
         border: 1px solid #475569 !important;
         padding: 4px 8px !important;
         border-radius: 6px !important;
         width: fit-content !important;
         margin-top: 5px !important;
     }
-    
-    /* 強制箭頭顏色為亮黃 */
-    [data-testid="stMetricDelta"] svg {
-        fill: #facc15 !important; 
+    [data-testid="stMetricDelta"] svg { fill: #facc15 !important; }
+    [data-testid="stMetricDelta"] > div { color: #f8fafc !important; font-weight: bold !important; }
+
+    /* 4. 【核心修復】按鈕樣式 - 強制黑字黃底 */
+    div.stButton > button {
+        background-color: #facc15 !important; /* 亮黃色背景 */
+        border: 2px solid #fbbf24 !important;
+        border-radius: 12px !important;
+        padding: 15px 0 !important; /* 增加高度 */
     }
     
-    /* 強制文字顏色為亮白 */
-    [data-testid="stMetricDelta"] > div {
-        color: #f8fafc !important;
-        font-weight: bold !important;
+    /* 這裡就是關鍵：強制按鈕內的所有文字 (p tag) 變成純黑 */
+    div.stButton > button p {
+        color: #000000 !important; /* 純黑文字 */
+        font-size: 26px !important; /* 字體加大 */
+        font-weight: 900 !important; /* 特粗 */
+        font-family: 'Courier New', monospace !important;
+    }
+    
+    /* 滑鼠懸停效果 */
+    div.stButton > button:hover {
+        background-color: #fde047 !important; /* 更亮的黃 */
+        border-color: #ffffff !important;
+        transform: scale(1.02);
+    }
+    div.stButton > button:hover p {
+        color: #000000 !important; /* 懸停時依然保持純黑 */
     }
 
     /* 遊戲區塊容器 */
@@ -65,7 +79,7 @@ st.markdown("""
         box-shadow: 0 10px 30px rgba(0,0,0,0.6);
     }
     
-    /* 進度條軌道 */
+    /* 進度條 */
     .progress-track {
         background: #334155;
         height: 28px;
@@ -75,21 +89,16 @@ st.markdown("""
         margin: 25px 0;
         border: 1px solid #64748b;
     }
-    
-    /* 進度條填充 */
     .progress-fill {
         background: linear-gradient(90deg, #c084fc, #e879f9);
         height: 100%;
         transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
         box-shadow: 0 0 15px rgba(192, 132, 252, 0.5);
     }
-    
     .progress-fill.warning {
         background: linear-gradient(90deg, #fca5a5, #ef4444);
         box-shadow: 0 0 15px rgba(239, 68, 68, 0.5);
     }
-    
-    /* 目標標記 */
     .target-marker {
         position: absolute;
         top: 0;
@@ -98,24 +107,6 @@ st.markdown("""
         background-color: #facc15;
         z-index: 10;
         box-shadow: 0 0 10px #facc15;
-    }
-
-    /* 卡片按鈕 */
-    div.stButton > button {
-        background-color: #facc15 !important;
-        color: #020617 !important;
-        border: 2px solid #fbbf24 !important;
-        border-radius: 10px !important;
-        font-size: 24px !important;
-        font-weight: 900 !important;
-        transition: all 0.1s !important;
-        font-family: 'Courier New', monospace;
-        padding: 10px 0 !important;
-    }
-    div.stButton > button:hover {
-        background-color: #fde047 !important;
-        transform: translateY(-4px) scale(1.02);
-        box-shadow: 0 8px 20px rgba(250, 204, 21, 0.4);
     }
     
     /* 數學推導區塊 */
@@ -139,7 +130,7 @@ st.markdown("""
         font-size: 1.2rem;
     }
     
-    /* 視覺化約分區塊 */
+    /* 視覺化約分 */
     .cancellation-wrapper {
         background: #020617; 
         padding: 20px; 
@@ -147,7 +138,6 @@ st.markdown("""
         text-align: center;
         border: 1px solid #1e293b;
     }
-
     .cancellation-box {
         display: flex;
         align-items: center;
@@ -158,25 +148,21 @@ st.markdown("""
         margin: 15px 0;
         font-weight: bold;
     }
-    
     .fraction {
         display: inline-block;
         text-align: center;
         vertical-align: middle;
         margin: 0 8px;
     }
-    
     .fraction > span {
         display: block;
         padding: 2px 8px;
         color: #ffffff; 
     }
-    
     .fraction span.bottom {
         border-top: 3px solid #ffffff; 
         margin-top: 2px;
     }
-    
     .equals-sign { color: #94a3b8; font-size: 2rem; }
     .final-result { color: #4ade80; font-weight: 900; font-size: 2.2rem; }
     
@@ -192,8 +178,6 @@ st.markdown("""
         border-radius: 8px;
         border: 1px solid rgba(56, 189, 248, 0.3);
     }
-    
-    /* 標籤文字 */
     .label-text {
         color: #cbd5e1;
         font-weight: bold;
