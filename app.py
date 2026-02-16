@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import List, Tuple
 
 # ==========================================
-# 1. 頁面設定與 CSS (View Layer) - 絕對黑字版
+# 1. 頁面設定與 CSS (View Layer) - 絕對修正版
 # ==========================================
 st.set_page_config(page_title="分數乘除連鎖反應", page_icon="🧩", layout="centered")
 
@@ -44,37 +44,38 @@ st.markdown("""
     [data-testid="stMetricDelta"] > div { color: #f8fafc !important; font-weight: bold !important; }
 
     /* =========================================================
-       4. 【核彈級修復】按鈕文字強制全黑
+       4. 【絕對修正】按鈕文字顏色
        ========================================================= */
     
-    /* 第一層：鎖定按鈕本體 */
+    /* 設定按鈕背景為亮黃色 */
     div.stButton > button {
-        background-color: #facc15 !important; /* 亮黃底 */
-        border: 2px solid #fbbf24 !important;
-        color: #000000 !important; /* 設定第一層文字為黑 */
+        background-color: #FFD700 !important; /* 純金黃 */
+        border: 2px solid #ffffff !important;
+        border-radius: 12px !important;
+        padding: 10px 0 !important;
     }
 
-    /* 第二層：鎖定按鈕內的所有子元素 (p, div, span) */
-    div.stButton > button * {
-        color: #000000 !important;
-        fill: #000000 !important;
-        -webkit-text-fill-color: #000000 !important; /* 強制 Webkit 內核填充黑色 */
-        font-weight: 900 !important; /* 特粗體 */
-        font-size: 24px !important;
+    /* 【關鍵】直接抓取按鈕內的 p 標籤，強制設為黑色 */
+    div.stButton > button p {
+        color: #000000 !important; /* 純黑 */
+        font-size: 28px !important; /* 字體加大 */
+        font-weight: 900 !important; /* 最粗體 */
         font-family: 'Courier New', monospace !important;
     }
-
-    /* 滑鼠懸停狀態：依然全黑 */
-    div.stButton > button:hover {
-        background-color: #fde047 !important;
-        border-color: #ffffff !important;
-    }
-    div.stButton > button:hover * {
+    
+    /* 針對可能存在的 div 或 span 也強制設為黑色 */
+    div.stButton > button div, 
+    div.stButton > button span {
         color: #000000 !important;
     }
-    
-    /* 點擊狀態：依然全黑 */
-    div.stButton > button:active * {
+
+    /* 滑鼠懸停時，背景變白，字依然黑 */
+    div.stButton > button:hover {
+        background-color: #ffffff !important;
+        border-color: #FFD700 !important;
+        transform: scale(1.02);
+    }
+    div.stButton > button:hover p {
         color: #000000 !important;
     }
 
