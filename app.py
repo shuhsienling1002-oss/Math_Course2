@@ -1,6 +1,7 @@
 import streamlit as st
 import random
 import math
+import uuid
 from fractions import Fraction
 from dataclasses import dataclass, field
 from typing import List, Tuple, Optional
@@ -8,13 +9,13 @@ from typing import List, Tuple, Optional
 # ==========================================
 # 0. 全局設定 (Global Config)
 # ==========================================
-MAX_LEVEL = 5  # 設定總關卡數
+MAX_LEVEL = 5  # 總關卡數
 
 # ==========================================
 # 1. 核心配置與 CSS
 # ==========================================
 st.set_page_config(
-    page_title="分數鍊金術",
+    page_title="分數鍊金術 v2.0",
     page_icon="⚗️",
     layout="centered"
 )
@@ -24,82 +25,58 @@ st.markdown("""
     /* 全局暗色系實驗室風格 */
     .stApp { background-color: #0f172a; color: #e2e8f0; }
     
-    /* 修正：增強 Caption (頂部關卡資訊) 的對比度 */
-    .stCaption {
-        color: #94a3b8 !important;
-        font-size: 1rem !important;
-        font-weight: bold !important;
+    /* 頂部進度條優化 */
+    .stProgress > div > div > div > div {
+        background-color: #38bdf8;
     }
 
-    /* 自定義訊息欄 */
-    .custom-info-box {
-        background-color: rgba(56, 189, 248, 0.1);
-        border: 1px solid #38bdf8;
-        color: #e0f2fe;
-        padding: 15px;
-        border-radius: 8px;
+    /* 煉成反應爐 (公式區) */
+    .reactor-box {
+        background: #1e293b;
+        border: 2px solid #475569;
+        border-radius: 12px;
+        padding: 20px;
+        margin: 15px 0;
+        box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
         text-align: center;
-        font-size: 1.2rem;
-        font-weight: bold;
-        margin-bottom: 20px;
-        box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
     }
 
-    /* 卡牌按鈕優化 */
+    /* 卡牌按鈕 - 增強質感 */
     div.stButton > button {
-        background: linear-gradient(145deg, #3b82f6, #2563eb) !important;
-        color: white !important;
-        border: none !important;
+        background: linear-gradient(180deg, #334155, #1e293b) !important;
+        color: #e2e8f0 !important;
+        border: 1px solid #475569 !important;
         border-radius: 8px !important;
         font-family: 'Courier New', monospace !important;
-        font-weight: bold !important;
-        font-size: 1.2rem !important;
-        transition: all 0.2s !important;
-        box-shadow: 0 4px 0 #1d4ed8 !important; /* 3D 按壓感 */
-    }
-    div.stButton > button:active {
-        transform: translateY(4px) !important;
-        box-shadow: none !important;
+        font-size: 1.1rem !important;
+        transition: all 0.1s !important;
     }
     div.stButton > button:hover {
-        filter: brightness(1.1);
+        border-color: #38bdf8 !important;
+        color: #38bdf8 !important;
+        transform: translateY(-2px);
+    }
+    div.stButton > button:active {
+        transform: translateY(1px);
     }
     
-    /* 除法卡牌特殊色 */
-    .division-card > button {
-        background: linear-gradient(145deg, #ec4899, #db2777) !important;
-        box-shadow: 0 4px 0 #be185d !important;
-    }
+    /* 特殊卡牌顏色標記 */
+    .div-card { border-color: #f472b6 !important; color: #f472b6 !important; }
+    .neg-card { border-color: #f87171 !important; color: #f87171 !important; }
 
-    /* 勝利結算區 */
-    .victory-modal {
-        background: rgba(16, 185, 129, 0.1);
-        border: 2px solid #10b981;
-        padding: 20px;
-        border-radius: 15px;
+    /* 狀態提示 */
+    .status-msg {
         text-align: center;
-        animation: fadeIn 0.5s;
+        font-weight: bold;
+        padding: 10px;
+        border-radius: 8px;
+        margin-bottom: 10px;
     }
+    .msg-info { background: rgba(56, 189, 248, 0.1); color: #38bdf8; border: 1px solid #38bdf8; }
+    .msg-warn { background: rgba(250, 204, 21, 0.1); color: #facc15; border: 1px solid #facc15; }
+    .msg-error { background: rgba(248, 113, 113, 0.1); color: #f87171; border: 1px solid #f87171; }
+    .msg-success { background: rgba(74, 222, 128, 0.1); color: #4ade80; border: 1px solid #4ade80; }
 
-    /* 通關畢業證書 */
-    .completion-modal {
-        background: linear-gradient(135deg, #facc15 0%, #a16207 100%);
-        color: #422006;
-        padding: 30px;
-        border-radius: 20px;
-        text-align: center;
-        box-shadow: 0 0 30px rgba(250, 204, 21, 0.4);
-        animation: zoomIn 0.8s;
-    }
-    
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(-10px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes zoomIn {
-        from { transform: scale(0.8); opacity: 0; }
-        to { transform: scale(1); opacity: 1; }
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -112,47 +89,32 @@ class MathCard:
     numerator: int
     denominator: int
     is_division: bool = False
-    id: str = field(default_factory=lambda: f"{random.randint(1000,9999)}")
-
-    @property
-    def raw_value(self) -> Fraction:
-        """卡牌面值的原始分數"""
-        return Fraction(self.numerator, self.denominator)
+    # [Risk Fix]: 使用 uuid 避免 ID 碰撞
+    id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
     @property
     def effect_value(self) -> Fraction:
-        """卡牌產生的實際乘數效果 (除法會翻轉)"""
+        """實際運算效果 (除法翻轉)"""
         if self.is_division:
             return Fraction(self.denominator, self.numerator)
         return Fraction(self.numerator, self.denominator)
 
-    def to_latex(self) -> str:
-        """生成 LaTeX 顯示字串"""
-        n, d = self.numerator, self.denominator
-        
-        # 處理負號顯示邏輯
-        is_negative = (n * d < 0)
-        n, d = abs(n), abs(d)
-        
-        sign_str = "-" if is_negative else ""
-        frac_str = f"\\frac{{{n}}}{{{d}}}"
-        
-        if self.is_division:
-            return f"\\div {sign_str}{frac_str}"
-        else:
-            return f"\\times {sign_str}{frac_str}"
+    @property
+    def display_text(self) -> str:
+        """按鈕上顯示的文字"""
+        op = "➗" if self.is_division else "✖️"
+        # 負數顯示括號
+        n_display = f"({self.numerator})" if self.numerator < 0 else f"{self.numerator}"
+        return f"{op} {n_display}/{self.denominator}"
 
 # ==========================================
-# 3. 遊戲邏輯核心 (Logic Layer)
+# 3. 鍊金引擎 (Logic Layer - Zero Entropy)
 # ==========================================
 
 class AlchemyEngine:
-    """負責數學計算與關卡生成"""
     
     @staticmethod
     def generate_level(level: int) -> dict:
-        """生成關卡數據"""
-        # 難度曲線配置
         config = {
             1: {'nums': [2, 3], 'steps': 2, 'neg': False, 'div': False, 'title': "基礎合成 (整數)"},
             2: {'nums': [2, 3, 4], 'steps': 2, 'neg': False, 'div': False, 'title': "等價交換 (約分)"},
@@ -160,30 +122,29 @@ class AlchemyEngine:
             4: {'nums': [2, 3, 5, 7], 'steps': 3, 'neg': True, 'div': True, 'title': "逆向煉成 (除法)"},
             5: {'nums': [2, 3, 4, 5, 6, 8, 9], 'steps': 4, 'neg': True, 'div': True, 'title': "賢者之石 (高階)"}
         }
-        # 超過 5 關就用第 5 關的配置
         cfg = config.get(level, config[5])
         
-        # 1. 生成目標路徑 (保證有解 - 逆向工程法)
         target_val = Fraction(1, 1)
         correct_cards = []
         
+        # 逆向生成保證有解
         for _ in range(cfg['steps']):
             n = random.choice(cfg['nums'])
             d = random.choice(cfg['nums'])
-            while n == d: d = random.choice(cfg['nums']) # 避免生成 1
+            while n == d: d = random.choice(cfg['nums'])
             
-            # 負數生成邏輯 (Level 3+)
-            if cfg['neg'] and random.random() < 0.5: 
-                n = -n
-                
-            # 除法生成邏輯 (Level 4+)
+            if cfg['neg'] and random.random() < 0.5: n = -n
             is_div = cfg['div'] and random.random() < 0.3
             
             card = MathCard(n, d, is_division=is_div)
             correct_cards.append(card)
-            target_val *= card.effect_value
+            # 計算目標值
+            if is_div:
+                target_val *= Fraction(d, n)
+            else:
+                target_val *= Fraction(n, d)
 
-        # 2. 生成干擾項
+        # 生成干擾項
         distractors = []
         for _ in range(2):
             n = random.choice(cfg['nums'])
@@ -192,16 +153,10 @@ class AlchemyEngine:
             is_div = cfg['div'] and random.random() < 0.3
             distractors.append(MathCard(n, d, is_division=is_div))
 
-        # 3. 混合手牌
         hand = correct_cards + distractors
         random.shuffle(hand)
         
-        return {
-            "target": target_val,
-            "hand": hand,
-            "title": cfg['title'],
-            "optimal_path": correct_cards
-        }
+        return {"target": target_val, "hand": hand, "title": cfg['title']}
 
     @staticmethod
     def calculate_current(history: List[MathCard]) -> Fraction:
@@ -211,30 +166,103 @@ class AlchemyEngine:
         return val
 
     @staticmethod
-    def generate_equation_latex(history: List[MathCard]) -> str:
-        if not history:
-            return "1"
-        latex = "1"
+    def generate_visual_cancellation(history: List[MathCard]) -> str:
+        """
+        [Core Feature]: 生成帶有約分刪除線的 LaTeX
+        這就是『鍊金術』的視覺化過程：顯示雜質如何被消除。
+        """
+        if not history: return "1"
+
+        # 1. 收集所有的分子與分母 (展開除法)
+        nums = [1]
+        dens = [1]
+        
+        raw_latex_parts = []
+        
         for card in history:
-            latex += f" {card.to_latex()}"
-        return latex
+            n, d = card.numerator, card.denominator
+            if card.is_division:
+                # 除法：視覺上顯示翻轉
+                nums.append(d)
+                dens.append(n)
+                # 負號處理：若 d 為負，移到分子顯示比較好看
+                disp_n = d
+                disp_d = n
+                raw_latex_parts.append(f"\\div \\frac{{{n}}}{{{d}}}")
+            else:
+                nums.append(n)
+                dens.append(d)
+                raw_latex_parts.append(f"\\times \\frac{{{n}}}{{{d}}}")
+
+        # 2. 找尋公因數並標記約分
+        # 簡單算法：貪婪匹配
+        cancel_map_n = [False] * len(nums)
+        cancel_map_d = [False] * len(dens)
+        
+        # 這裡只做簡單的數值匹配約分展示 (視覺效果)
+        # 真實數學約分比較複雜，這裡為了遊戲體驗，我們標記「絕對值相同」的數
+        for i in range(len(nums)):
+            for j in range(len(dens)):
+                if not cancel_map_d[j] and abs(nums[i]) == abs(dens[j]) and abs(nums[i]) != 1:
+                    cancel_map_n[i] = True
+                    cancel_map_d[j] = True
+                    break
+        
+        # 3. 生成合併後的 LaTeX
+        # 分子部分
+        num_tex = ""
+        for i, val in enumerate(nums):
+            if i == 0 and val == 1 and len(nums)>1: continue # 省略起頭的 1
+            
+            s_val = f"({val})" if val < 0 else f"{val}"
+            if cancel_map_n[i]:
+                num_tex += f" \\cancel{{{s_val}}} \\cdot"
+            else:
+                num_tex += f" {s_val} \\cdot"
+        
+        # 分母部分
+        den_tex = ""
+        for i, val in enumerate(dens):
+            if i == 0 and val == 1 and len(dens)>1: continue
+            
+            s_val = f"({val})" if val < 0 else f"{val}"
+            if cancel_map_d[i]:
+                den_tex += f" \\cancel{{{s_val}}} \\cdot"
+            else:
+                den_tex += f" {s_val} \\cdot"
+
+        # 移除末尾的 \cdot
+        num_tex = num_tex.rstrip(" \\cdot")
+        den_tex = den_tex.rstrip(" \\cdot")
+        
+        if not num_tex: num_tex = "1"
+        if not den_tex: den_tex = "1"
+
+        # 組合： 原始算式 = 合併算式
+        full_raw = "".join(raw_latex_parts)
+        # 去掉第一個乘號若存在
+        if full_raw.startswith("\\times"): full_raw = full_raw[6:]
+        
+        return f"1 {full_raw} = \\frac{{{num_tex}}}{{{den_tex}}}"
 
 # ==========================================
-# 4. 狀態管理 (State Management)
+# 4. 狀態管理
 # ==========================================
 
 class GameState:
     def __init__(self):
         if 'level' not in st.session_state:
-            st.session_state.update({
-                'level': 1,
-                'target': Fraction(1, 1),
-                'hand': [],
-                'history': [], 
-                'game_status': 'playing', # playing, won, lost, completed
-                'msg': '準備開始煉成...'
-            })
-            self.start_level(1)
+            self.init_game()
+    
+    def init_game(self):
+        st.session_state.update({
+            'level': 1,
+            'history': [],
+            'game_status': 'playing',
+            'msg': '準備開始煉成...',
+            'msg_type': 'info'
+        })
+        self.start_level(1)
 
     def start_level(self, level):
         st.session_state.level = level
@@ -245,6 +273,7 @@ class GameState:
         st.session_state.history = []
         st.session_state.game_status = 'playing'
         st.session_state.msg = f"第 {level} 關：{data['title']}"
+        st.session_state.msg_type = 'info'
 
     def play_card(self, card_idx):
         hand = st.session_state.hand
@@ -258,7 +287,8 @@ class GameState:
             card = st.session_state.history.pop()
             st.session_state.hand.append(card)
             st.session_state.game_status = 'playing'
-            st.session_state.msg = "時光回溯成功"
+            st.session_state.msg = "時光回溯：已撤銷上一步"
+            st.session_state.msg_type = 'info'
 
     def _check_status(self):
         current = AlchemyEngine.calculate_current(st.session_state.history)
@@ -266,155 +296,134 @@ class GameState:
         
         if current == target:
             st.session_state.game_status = 'won'
-            st.session_state.msg = "煉成成功！元素穩定！"
+            st.session_state.msg = "✨ 煉成成功！元素完美平衡！"
+            st.session_state.msg_type = 'success'
         elif not st.session_state.hand:
             st.session_state.game_status = 'lost'
-            st.session_state.msg = "素材耗盡，煉成失敗..."
+            st.session_state.msg = "🌑 煉成失敗：素材耗盡，無法達成目標。"
+            st.session_state.msg_type = 'error'
         else:
-            # 鷹架提示 (Scaffolding)
+            # 實時鷹架回饋 (Scaffolding)
             if (current > 0 > target) or (current < 0 < target):
-                st.session_state.msg = "⚠️ 警告：正負號相反！(試著乘上負數)"
+                st.session_state.msg = "⚠️ 極性錯誤！正負號相反，請投入負數素材。"
+                st.session_state.msg_type = 'warn'
             elif abs(current) > abs(target):
-                st.session_state.msg = "📉 提示：數值過大，需要變小"
+                st.session_state.msg = "📉 濃度過高：數值過大，需要除法或分數來稀釋。"
+                st.session_state.msg_type = 'info'
             elif abs(current) < abs(target):
-                st.session_state.msg = "📈 提示：數值過小，需要變大"
+                st.session_state.msg = "📈 濃度不足：數值過小，需要乘法來增強。"
+                st.session_state.msg_type = 'info'
             else:
                 st.session_state.msg = "⚗️ 反應進行中..."
+                st.session_state.msg_type = 'info'
 
     def next_level(self):
         if st.session_state.level >= MAX_LEVEL:
             st.session_state.game_status = 'completed'
         else:
             self.start_level(st.session_state.level + 1)
-
-    def retry(self):
-        self.start_level(st.session_state.level)
-        
+            
     def restart_game(self):
-        self.start_level(1)
+        self.init_game()
 
 # ==========================================
-# 5. UI 呈現層 (View Layer)
+# 5. UI 呈現層
 # ==========================================
 
 def main():
     game = GameState()
     
-    # --- Header Area ---
-    col1, col2 = st.columns([3, 1])
-    with col1:
+    # --- Top Bar ---
+    c1, c2 = st.columns([3, 1])
+    with c1:
         st.title("⚗️ 分數鍊金術")
-        # 【新增】明確的任務說明
-        st.markdown(f"**🏆 挑戰目標：通過全部 {MAX_LEVEL} 個關卡，取得賢者之石！**")
-    with col2:
-        if st.button("🔄 重置"):
+    with c2:
+        if st.button("🔄 重置實驗"):
             game.restart_game()
             st.rerun()
-            
-    # 【新增】視覺化進度條
-    progress_value = st.session_state.level / MAX_LEVEL
-    st.progress(progress_value)
-    st.caption(f"當前進度：第 {st.session_state.level} 關 / 共 {MAX_LEVEL} 關")
 
-    # --- 全破畫面 (Game Completed) ---
+    progress = st.session_state.level / MAX_LEVEL
+    st.progress(progress)
+    st.caption(f"Level {st.session_state.level}/{MAX_LEVEL}: {st.session_state.get('level_title', '')}")
+
+    # --- Game Completed ---
     if st.session_state.game_status == 'completed':
+        st.balloons()
         st.markdown("""
-        <div class="completion-modal">
-            <h1>🏆 鍊金術大師！</h1>
-            <p style="font-size: 1.5rem;">恭喜你！你已經掌握了分數、約分、負數與除法的奧義。</p>
-            <p>所有的元素都已達到完美的平衡。</p>
+        <div style="background:linear-gradient(135deg,#f59e0b,#d97706);padding:30px;border-radius:15px;text-align:center;color:white;">
+            <h1>🏆 賢者之石已煉成！</h1>
+            <p>你已掌握所有鍊金術奧義 (分數運算)。</p>
         </div>
         """, unsafe_allow_html=True)
-        st.balloons()
-        
-        if st.button("🎓 領取證書並重新開始", type="primary", use_container_width=True):
+        if st.button("🎓 開啟新一輪試煉", use_container_width=True):
             game.restart_game()
             st.rerun()
-        return # 結束渲染
+        return
 
-    # --- Target vs Current Dashboard ---
+    # --- Dashboard ---
     target = st.session_state.target
     current = AlchemyEngine.calculate_current(st.session_state.history)
     
-    c1, c2, c3 = st.columns([1, 0.2, 1])
-    with c1:
-        st.markdown(f"### 🎯 目標數值\n$$\\Huge \\frac{{{target.numerator}}}{{{target.denominator}}}$$")
-    with c2:
-        icon = "⚖️"
-        if current == target: icon = "✅"
-        elif st.session_state.game_status == 'lost': icon = "❌"
-        st.markdown(f"<div style='font-size:3rem; text-align:center; padding-top:20px'>{icon}</div>", unsafe_allow_html=True)
-    with c3:
-        color = "#4ade80" if current == target else "#facc15"
-        st.markdown(f"### 🧪 當前數值\n$$\\Huge \\color{{{color}}}{{\\frac{{{current.numerator}}}{{{current.denominator}}}}}$$")
+    # 視覺化對比
+    col_tgt, col_mid, col_cur = st.columns([1, 0.2, 1])
+    with col_tgt:
+        st.markdown(f"<div style='text-align:center;color:#94a3b8'>目標元素</div>", unsafe_allow_html=True)
+        st.latex(f"\\Huge \\frac{{{target.numerator}}}{{{target.denominator}}}")
+    with col_mid:
+        status_icon = "⚖️"
+        if current == target: status_icon = "✅"
+        elif st.session_state.game_status == 'lost': status_icon = "❌"
+        st.markdown(f"<div style='text-align:center;font-size:2.5rem;padding-top:10px'>{status_icon}</div>", unsafe_allow_html=True)
+    with col_cur:
+        cur_color = "#4ade80" if current == target else "#facc15"
+        st.markdown(f"<div style='text-align:center;color:#94a3b8'>當前混合物</div>", unsafe_allow_html=True)
+        st.latex(f"\\Huge \\color{{{cur_color}}}{{\\frac{{{current.numerator}}}{{{current.denominator}}}}}")
 
-    # --- 狀態訊息 ---
-    st.markdown(f'<div class="custom-info-box">{st.session_state.msg}</div>', unsafe_allow_html=True)
+    # --- Message Box ---
+    msg_cls = f"msg-{st.session_state.msg_type}"
+    st.markdown(f'<div class="status-msg {msg_cls}">{st.session_state.msg}</div>', unsafe_allow_html=True)
 
-    # --- 算式鏈 (Equation Chain) ---
-    st.markdown("**📜 煉成公式：**")
-    latex_eq = AlchemyEngine.generate_equation_latex(st.session_state.history)
-    st.latex(f"{latex_eq} = \\frac{{{current.numerator}}}{{{current.denominator}}}")
+    # --- Reactor (Visual Equation) ---
+    st.markdown("**📜 煉成反應式：**")
+    # [Highlight]: 使用視覺化約分函數
+    visual_latex = AlchemyEngine.generate_visual_cancellation(st.session_state.history)
+    
+    st.markdown(f"""
+    <div class="reactor-box">
+        <div style="font-size: 1.2rem; overflow-x: auto;">
+        $${visual_latex} = \\frac{{{current.numerator}}}{{{current.denominator}}}$$
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    # --- 遊戲區 (Play Area) ---
+    # --- Play Area ---
     if st.session_state.game_status == 'playing':
-        st.markdown("---")
-        st.write("👇 點擊卡牌加入反應爐：")
-        
-        # 手牌區
+        st.write("👇 點擊素材投入反應爐：")
         hand = st.session_state.hand
+        
         if hand:
             cols = st.columns(4)
             for i, card in enumerate(hand):
-                col_idx = i % 4
-                with cols[col_idx]:
-                    # 按鈕標籤邏輯：直接顯示負號，如 -2/3
-                    n = card.numerator
-                    d = card.denominator
-                    sign = "-" if (n * d < 0) else ""
-                    abs_n, abs_d = abs(n), abs(d)
-                    
-                    op_icon = "➗" if card.is_division else "✖️"
-                    btn_label = f"{op_icon} {sign}{abs_n}/{abs_d}"
-                    
-                    if st.button(btn_label, key=f"card_{card.id}"):
+                with cols[i % 4]:
+                    # 根據卡牌類型給予不同樣式提示 (但主要還是靠按鈕文字)
+                    if st.button(card.display_text, key=f"card_{card.id}", use_container_width=True):
                         game.play_card(i)
                         st.rerun()
         
-        # 功能區
-        st.markdown("---")
         if st.session_state.history:
-            if st.button("↩️ 復原上一步", type="secondary"):
+            st.markdown("---")
+            if st.button("↩️ 撤銷投入 (Undo)"):
                 game.undo()
                 st.rerun()
 
-    # --- 結算區 (Result Area) ---
+    # --- Result Actions ---
     elif st.session_state.game_status == 'won':
-        st.markdown("""
-        <div class="victory-modal">
-            <h2>🎉 煉成成功！</h2>
-            <p>你完美平衡了分子與分母。</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        with st.expander("🔍 查看反應原理 (逐步解析)", expanded=True):
-            st.write("你的計算路徑：")
-            st.latex(latex_eq)
-            st.write("這證明了：")
-            st.latex(f"\\underbrace{{\\frac{{{current.numerator}}}{{{current.denominator}}}}}_{{\\text{{當前數值}}}} = \\underbrace{{\\frac{{{target.numerator}}}{{{target.denominator}}}}}_{{\\text{{目標數值}}}}")
-
-        # 判斷按鈕文字
-        next_btn_text = "🚀 前往下一關"
-        if st.session_state.level >= MAX_LEVEL:
-            next_btn_text = "🏆 領取畢業證書 (最終關)"
-
-        if st.button(next_btn_text, type="primary", use_container_width=True):
+        if st.button("🚀 前往下一層", type="primary", use_container_width=True):
             game.next_level()
             st.rerun()
-
+            
     elif st.session_state.game_status == 'lost':
-        st.error("💥 實驗失敗：無法合成目標元素。")
-        if st.button("🔄 重新實驗", type="primary", use_container_width=True):
+        if st.button("💥 清理反應爐 (重試)", type="primary", use_container_width=True):
             game.retry()
             st.rerun()
 
