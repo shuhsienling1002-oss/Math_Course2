@@ -1,369 +1,429 @@
 import streamlit as st
 import random
-import time
+import math
+import uuid
 from fractions import Fraction
 from dataclasses import dataclass, field
 from typing import List, Tuple, Optional
-import math
 
 # ==========================================
-# 0. 全局設定與 CSS (Global Config)
+# 0. 全局設定 (Global Config)
+# ==========================================
+MAX_LEVEL = 5  # 總關卡數
+
+# ==========================================
+# 1. 核心配置與 CSS (保持原樣)
 # ==========================================
 st.set_page_config(
-    page_title="零熵鍊金術: Zero-Entropy Alchemy",
+    page_title="分數鍊金術 v2.2",
     page_icon="⚗️",
-    layout="wide"
+    layout="centered"
 )
 
-# 引入自定義 CSS (基於 10-3.APP介面.txt 的極簡與對比度要求)
 st.markdown("""
 <style>
-    /* 全局深色系 - 專注模式 */
-    .stApp { background-color: #0f172a; color: #f1f5f9; }
+    /* 全局暗色系實驗室風格 */
+    .stApp { background-color: #0f172a; color: #e2e8f0; }
     
-    /* 反應爐容器 - 物理隱喻：高壓容器 */
-    .reactor-container {
-        background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
-        border: 2px solid #334155;
-        border-radius: 20px;
-        padding: 20px;
-        text-align: center;
-        box-shadow: 0 0 30px rgba(56, 189, 248, 0.1);
-        margin-bottom: 20px;
-        transition: border-color 0.3s;
-    }
-    
-    /* 熵值警告狀態 */
-    .reactor-critical {
-        border-color: #ef4444 !important;
-        box-shadow: 0 0 30px rgba(239, 68, 68, 0.3) !important;
+    /* 頂部進度條優化 */
+    .stProgress > div > div > div > div {
+        background-color: #38bdf8;
     }
 
-    /* 卡牌按鈕 - 觸感設計 */
+    /* 煉成反應爐 (公式區容器) */
+    .reactor-box {
+        background: #1e293b;
+        border: 2px solid #475569;
+        border-radius: 12px;
+        padding: 10px;
+        margin: 15px 0;
+        box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+        text-align: center;
+    }
+
+    /* 卡牌按鈕 - 增強質感 */
     div.stButton > button {
-        background: linear-gradient(145deg, #334155, #1e293b) !important;
+        background: linear-gradient(180deg, #334155, #1e293b) !important;
         color: #e2e8f0 !important;
         border: 1px solid #475569 !important;
-        border-radius: 12px !important;
+        border-radius: 8px !important;
         font-family: 'Courier New', monospace !important;
-        font-size: 1.2rem !important;
-        height: 80px !important;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        font-size: 1.1rem !important;
+        transition: all 0.1s !important;
     }
     div.stButton > button:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
         border-color: #38bdf8 !important;
         color: #38bdf8 !important;
+        transform: translateY(-2px);
+    }
+    div.stButton > button:active {
+        transform: translateY(1px);
     }
     
-    /* 進度條優化 */
-    .stProgress > div > div > div > div {
-        background-image: linear-gradient(to right, #38bdf8, #818cf8);
+    /* 狀態提示 */
+    .status-msg {
+        text-align: center;
+        font-weight: bold;
+        padding: 10px;
+        border-radius: 8px;
+        margin-bottom: 10px;
     }
-    
-    /* 狀態文字 */
-    .status-text {
-        font-weight: 600;
-        letter-spacing: 0.05em;
-        text-transform: uppercase;
-        font-size: 0.9rem;
-    }
+    .msg-info { background: rgba(56, 189, 248, 0.1); color: #38bdf8; border: 1px solid #38bdf8; }
+    .msg-warn { background: rgba(250, 204, 21, 0.1); color: #facc15; border: 1px solid #facc15; }
+    .msg-error { background: rgba(248, 113, 113, 0.1); color: #f87171; border: 1px solid #f87171; }
+    .msg-success { background: rgba(74, 222, 128, 0.1); color: #4ade80; border: 1px solid #4ade80; }
+
 </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 1. 領域模型 (Domain Model - 16 Models Applied)
+# 2. 領域模型 (Domain Model - 保持原樣)
 # ==========================================
 
 @dataclass
-class ElementCard:
+class MathCard:
     numerator: int
     denominator: int
-    type: str = "matter"  # matter (乘法素材), antimatter (除法/稀釋素材)
-    id: str = field(default_factory=lambda: str(random.randint(1000, 9999)))
+    is_division: bool = False
+    # 使用 uuid 避免 ID 碰撞
+    id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
     @property
-    def value(self) -> Fraction:
-        if self.type == "antimatter":
+    def effect_value(self) -> Fraction:
+        """實際運算效果 (除法翻轉)"""
+        if self.is_division:
             return Fraction(self.denominator, self.numerator)
         return Fraction(self.numerator, self.denominator)
 
     @property
-    def display(self) -> str:
-        # 視覺化符號：乘法用實心，除法用空心或反轉符號
-        op = "⨉" if self.type == "matter" else "÷"
-        n_show = f"({self.numerator})" if self.numerator < 0 else f"{self.numerator}"
-        return f"{op}\n{n_show}\n──\n{self.denominator}"
+    def display_text(self) -> str:
+        """按鈕上顯示的文字"""
+        op = "➗" if self.is_division else "✖️"
+        # 負數顯示括號
+        n_display = f"({self.numerator})" if self.numerator < 0 else f"{self.numerator}"
+        return f"{op} {n_display}/{self.denominator}"
 
 # ==========================================
-# 2. 鍊金引擎 (The Logic Engine)
+# 3. 鍊金引擎 (Logic Layer)
 # ==========================================
 
-class EntropyEngine:
-    """負責計算系統熵值與物理反饋"""
+class AlchemyEngine:
     
     @staticmethod
-    def calculate_entropy(current_val: Fraction) -> float:
-        """
-        Model 2: 熱力學與熵增
-        熵值由分子分母的大小決定。數值越大，系統越不穩定。
-        """
-        n, d = abs(current_val.numerator), abs(current_val.denominator)
-        if n == 0: return 0.0
-        # 使用對數尺度模擬物理壓強
-        entropy = math.log10(n * d + 1) * 20 
-        return min(entropy, 100.0)
-
-    @staticmethod
-    def generate_latex_visualization(history: List[ElementCard]) -> str:
-        """
-        Model 1: 第一性原理視覺化
-        生成帶有顏色標記的 LaTeX，模擬化學反應過程
-        [修正]: 移除預設的 '1'，僅在完全空的時候顯示 1，否則顯示純粹的成分。
-        """
-        if not history: return "1"
-
-        # 構建分子分母列表，不再預設包含 1
-        nums = []
-        dens = []
-        
-        for card in history:
-            n, d = card.numerator, card.denominator
-            if card.type == "antimatter":
-                nums.append(d)
-                dens.append(n)
-            else:
-                nums.append(n)
-                dens.append(d)
-
-        # 智能約分標記 (尋找公因數)
-        # Model 10: 奧卡姆剃刀 - 標記可消除的冗餘
-        cancel_n = [False] * len(nums)
-        cancel_d = [False] * len(dens)
-        
-        # 簡單貪婪匹配約分 (視覺用)
-        for i in range(len(nums)):
-            for j in range(len(dens)):
-                if not cancel_d[j] and not cancel_n[i] and abs(nums[i]) == abs(dens[j]):
-                    cancel_n[i] = True
-                    cancel_d[j] = True
-                    break
-
-        # 生成 LaTeX
-        def fmt(val, cancel):
-            color = "red" if cancel else "white"
-            s_val = f"({val})" if val < 0 else f"{val}"
-            if cancel:
-                return f"\\color{{{color}}}{{\\cancel{{{s_val}}}}}"
-            return s_val
-
-        # 如果列表為空 (防禦性編程)，補 1
-        if not nums: nums = [1]
-        if not dens: dens = [1]
-
-        num_tex = " \\cdot ".join([fmt(nums[i], cancel_n[i]) for i in range(len(nums))])
-        den_tex = " \\cdot ".join([fmt(dens[i], cancel_d[i]) for i in range(len(dens))])
-        
-        return f"\\frac{{{num_tex}}}{{{den_tex}}}"
-
-# ==========================================
-# 3. 遊戲狀態管理 (Game State)
-# ==========================================
-
-class AlchemyGame:
-    def __init__(self):
-        if 'level' not in st.session_state:
-            self.reset_campaign()
-            
-    def reset_campaign(self):
-        st.session_state.update({
-            'level': 1,
-            'score': 0,
-            'combo': 0, # Model 3: 臨界質量
-            'max_entropy_hit': False,
-            'history': [],
-            'hand': [],
-            'target': Fraction(1, 1),
-            'game_state': 'planning' # planning, verifying, won, lost
-        })
-        self.load_level(1)
-
-    def load_level(self, level):
-        # 難度曲線設計 (Model 15: 反脆弱)
+    def generate_level(level: int) -> dict:
         config = {
-            1: {'range': [2, 3, 4], 'ops': 2, 'allow_div': False, 'allow_neg': False, 'name': "基礎合成 (Matter)"},
-            2: {'range': [2, 3, 5], 'ops': 3, 'allow_div': False, 'allow_neg': True, 'name': "極性反轉 (Polarity)"},
-            3: {'range': [2, 3, 4, 5, 6], 'ops': 3, 'allow_div': True, 'allow_neg': True, 'name': "等價交換 (Equivalent)"},
-            4: {'range': [3, 4, 5, 7, 8, 9], 'ops': 4, 'allow_div': True, 'allow_neg': True, 'name': "高壓煉成 (High Pressure)"},
-            5: {'range': [2, 12, 15, 20], 'ops': 5, 'allow_div': True, 'allow_neg': True, 'name': "賢者之石 (Philosopher's Stone)"}
+            1: {'nums': [2, 3], 'steps': 2, 'neg': False, 'div': False, 'title': "基礎合成 (整數)"},
+            2: {'nums': [2, 3, 4], 'steps': 2, 'neg': False, 'div': False, 'title': "等價交換 (約分)"},
+            3: {'nums': [2, 3, 4, 5], 'steps': 3, 'neg': True, 'div': False, 'title': "極性反轉 (負數)"},
+            4: {'nums': [2, 3, 5, 7], 'steps': 3, 'neg': True, 'div': True, 'title': "逆向煉成 (除法)"},
+            5: {'nums': [2, 3, 4, 5, 6, 8, 9], 'steps': 4, 'neg': True, 'div': True, 'title': "賢者之石 (高階)"}
         }
         cfg = config.get(level, config[5])
         
-        target = Fraction(1, 1)
-        hand = []
+        target_val = Fraction(1, 1)
+        correct_cards = []
         
-        # 生成正確路徑
-        for _ in range(cfg['ops']):
-            n = random.choice(cfg['range'])
-            d = random.choice(cfg['range'])
-            while n == d: d = random.choice(cfg['range'])
+        # 逆向生成保證有解
+        for _ in range(cfg['steps']):
+            n = random.choice(cfg['nums'])
+            d = random.choice(cfg['nums'])
+            while n == d: d = random.choice(cfg['nums'])
             
-            if cfg['allow_neg'] and random.random() < 0.4: n = -n
-            is_div = cfg['allow_div'] and random.random() < 0.3
+            if cfg['neg'] and random.random() < 0.5: n = -n
+            is_div = cfg['div'] and random.random() < 0.3
             
-            card = ElementCard(n, d, "antimatter" if is_div else "matter")
-            hand.append(card)
-            target *= card.value
+            card = MathCard(n, d, is_division=is_div)
+            correct_cards.append(card)
+            # 計算目標值
+            if is_div:
+                target_val *= Fraction(d, n)
+            else:
+                target_val *= Fraction(n, d)
 
-        # 加入干擾項 (Model 4: 基礎比率/陷阱)
+        # 生成干擾項
+        distractors = []
         for _ in range(2):
-            n = random.choice(cfg['range'])
-            d = random.choice(cfg['range'])
-            hand.append(ElementCard(n, d, "matter"))
-            
+            n = random.choice(cfg['nums'])
+            d = random.choice(cfg['nums'])
+            if cfg['neg'] and random.random() < 0.5: n = -n
+            is_div = cfg['div'] and random.random() < 0.3
+            distractors.append(MathCard(n, d, is_division=is_div))
+
+        hand = correct_cards + distractors
         random.shuffle(hand)
         
-        st.session_state.level_config = cfg
-        st.session_state.target = target
-        st.session_state.hand = hand
-        st.session_state.history = []
-        st.session_state.game_state = 'planning'
-        st.session_state.max_entropy_hit = False
+        return {"target": target_val, "hand": hand, "title": cfg['title']}
 
-    def calculate_current(self):
+    @staticmethod
+    def calculate_current(history: List[MathCard]) -> Fraction:
         val = Fraction(1, 1)
-        for card in st.session_state.history:
-            val *= card.value
+        for card in history:
+            val *= card.effect_value
         return val
 
-    def play_card(self, idx):
-        if idx < len(st.session_state.hand):
-            card = st.session_state.hand.pop(idx)
-            st.session_state.history.append(card)
-            
-            # 檢查是否達到目標，但還沒提交 (Model 11: 回饋迴路)
-            current = self.calculate_current()
-            entropy = EntropyEngine.calculate_entropy(current)
-            if entropy > 80:
-                st.toast("⚠️ 警告：熵值過高！反應爐不穩定！請嘗試約分！", icon="🔥")
-                st.session_state.max_entropy_hit = True
+    @staticmethod
+    def generate_visual_cancellation(history: List[MathCard]) -> str:
+        """
+        生成帶有約分刪除線的 LaTeX
+        [修復]: 移除預設的 [1]，解決「幽靈數字 1」導致的帶分數誤解問題。
+        """
+        if not history: return "1"
 
-    def undo_move(self):
+        # 1. 收集所有的分子與分母
+        # [修改點]: 這裡不再預設包含 1，改為空列表開始
+        nums = []
+        dens = []
+        
+        raw_latex_parts = []
+        
+        for card in history:
+            n, d = card.numerator, card.denominator
+            if card.is_division:
+                # 除法：視覺上顯示翻轉
+                nums.append(d)
+                dens.append(n)
+                # 負號處理
+                raw_latex_parts.append(f"\\div \\frac{{{n}}}{{{d}}}")
+            else:
+                nums.append(n)
+                dens.append(d)
+                raw_latex_parts.append(f"\\times \\frac{{{n}}}{{{d}}}")
+
+        # 2. 找尋公因數並標記約分 (視覺標記)
+        cancel_map_n = [False] * len(nums)
+        cancel_map_d = [False] * len(dens)
+        
+        # 簡單貪婪匹配
+        for i in range(len(nums)):
+            for j in range(len(dens)):
+                if not cancel_map_d[j] and not cancel_map_n[i] and abs(nums[i]) == abs(dens[j]):
+                    cancel_map_n[i] = True
+                    cancel_map_d[j] = True
+                    break
+        
+        # 3. 生成合併後的 LaTeX
+        # 分子
+        num_tex_list = []
+        for i, val in enumerate(nums):
+            s_val = f"({val})" if val < 0 else f"{val}"
+            if cancel_map_n[i]:
+                num_tex_list.append(f"\\cancel{{{s_val}}}")
+            else:
+                num_tex_list.append(s_val)
+        
+        # 分母
+        den_tex_list = []
+        for i, val in enumerate(dens):
+            s_val = f"({val})" if val < 0 else f"{val}"
+            if cancel_map_d[i]:
+                den_tex_list.append(f"\\cancel{{{s_val}}}")
+            else:
+                den_tex_list.append(s_val)
+
+        # 組合字串
+        num_tex = " \\cdot ".join(num_tex_list)
+        den_tex = " \\cdot ".join(den_tex_list)
+        
+        if not num_tex: num_tex = "1"
+        if not den_tex: den_tex = "1"
+
+        # 組合部分
+        full_raw = "".join(raw_latex_parts)
+        # 移除最開頭可能的乘號，讓視覺更乾淨
+        if full_raw.startswith("\\times"): full_raw = full_raw[6:]
+        
+        # 返回純 LaTeX 字符串
+        return f"{full_raw} = \\frac{{{num_tex}}}{{{den_tex}}}"
+
+# ==========================================
+# 4. 狀態管理 (保持原樣)
+# ==========================================
+
+class GameState:
+    def __init__(self):
+        if 'level' not in st.session_state:
+            self.init_game()
+    
+    def init_game(self):
+        st.session_state.update({
+            'level': 1,
+            'history': [],
+            'game_status': 'playing',
+            'msg': '準備開始煉成...',
+            'msg_type': 'info'
+        })
+        self.start_level(1)
+
+    def start_level(self, level):
+        st.session_state.level = level
+        data = AlchemyEngine.generate_level(level)
+        st.session_state.target = data['target']
+        st.session_state.hand = data['hand']
+        st.session_state.level_title = data['title']
+        st.session_state.history = []
+        st.session_state.game_status = 'playing'
+        st.session_state.msg = f"第 {level} 關：{data['title']}"
+        st.session_state.msg_type = 'info'
+
+    def play_card(self, card_idx):
+        hand = st.session_state.hand
+        if 0 <= card_idx < len(hand):
+            card = hand.pop(card_idx)
+            st.session_state.history.append(card)
+            self._check_status()
+
+    def undo(self):
         if st.session_state.history:
             card = st.session_state.history.pop()
             st.session_state.hand.append(card)
+            st.session_state.game_status = 'playing'
+            st.session_state.msg = "時光回溯：已撤銷上一步"
+            st.session_state.msg_type = 'info'
 
-    def submit_solution(self, confidence):
-        current = self.calculate_current()
+    def retry(self):
+        self.start_level(st.session_state.level)
+
+    def _check_status(self):
+        current = AlchemyEngine.calculate_current(st.session_state.history)
         target = st.session_state.target
         
-        # Model 16: 貝葉斯更新 (信心分數影響得分)
-        is_correct = current == target
-        
-        if is_correct:
-            base_score = 100
-            # 熵值獎勵
-            final_entropy = EntropyEngine.calculate_entropy(current)
-            entropy_bonus = 50 if final_entropy < 30 else 0
-            
-            # 信心獎勵
-            conf_bonus = 0
-            if confidence > 80: conf_bonus = 20
-            elif confidence < 30: conf_bonus = -10
-            
-            total_gain = base_score + entropy_bonus + conf_bonus
-            st.session_state.score += total_gain
-            st.session_state.combo += 1
-            st.session_state.game_state = 'won'
-            
+        if current == target:
+            st.session_state.game_status = 'won'
+            st.session_state.msg = "✨ 煉成成功！元素完美平衡！"
+            st.session_state.msg_type = 'success'
+        elif not st.session_state.hand:
+            st.session_state.game_status = 'lost'
+            st.session_state.msg = "🌑 煉成失敗：素材耗盡，無法達成目標。"
+            st.session_state.msg_type = 'error'
         else:
-            st.session_state.combo = 0
-            st.session_state.game_state = 'lost'
-            if confidence > 80:
-                st.toast("💀 認知偏差！高信心錯誤！", icon="📉")
+            if (current > 0 > target) or (current < 0 < target):
+                st.session_state.msg = "⚠️ 極性錯誤！正負號相反，請投入負數素材。"
+                st.session_state.msg_type = 'warn'
+            elif abs(current) > abs(target):
+                st.session_state.msg = "📉 濃度過高：數值過大，需要除法或分數來稀釋。"
+                st.session_state.msg_type = 'info'
+            elif abs(current) < abs(target):
+                st.session_state.msg = "📈 濃度不足：數值過小，需要乘法來增強。"
+                st.session_state.msg_type = 'info'
+            else:
+                st.session_state.msg = "⚗️ 反應進行中..."
+                st.session_state.msg_type = 'info'
+
+    def next_level(self):
+        if st.session_state.level >= MAX_LEVEL:
+            st.session_state.game_status = 'completed'
+        else:
+            self.start_level(st.session_state.level + 1)
+            
+    def restart_game(self):
+        self.init_game()
 
 # ==========================================
-# 4. UI 呈現層 (View)
+# 5. UI 呈現層
 # ==========================================
 
 def main():
-    game = AlchemyGame()
+    game = GameState()
     
-    # --- Header Area ---
-    c1, c2, c3 = st.columns([2, 1, 1])
+    # --- Top Bar ---
+    c1, c2 = st.columns([3, 1])
     with c1:
-        st.title("⚗️ Zero-Entropy Alchemy")
-        st.caption(f"Level {st.session_state.level}: {st.session_state.level_config['name']}")
+        st.title("⚗️ 分數鍊金術")
     with c2:
-        st.metric("Score", st.session_state.score, delta=f"Combo x{st.session_state.combo}")
-    with c3:
         if st.button("🔄 重置實驗"):
-            game.reset_campaign()
+            game.restart_game()
             st.rerun()
 
-    # --- Target & Goal (The Objective) ---
+    progress = st.session_state.level / MAX_LEVEL
+    st.progress(progress)
+    st.caption(f"Level {st.session_state.level}/{MAX_LEVEL}: {st.session_state.get('level_title', '')}")
+
+    # --- Game Completed ---
+    if st.session_state.game_status == 'completed':
+        st.balloons()
+        st.markdown("""
+        <div style="background:linear-gradient(135deg,#f59e0b,#d97706);padding:30px;border-radius:15px;text-align:center;color:white;">
+            <h1>🏆 賢者之石已煉成！</h1>
+            <p>你已掌握所有鍊金術奧義 (分數運算)。</p>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("🎓 開啟新一輪試煉", use_container_width=True):
+            game.restart_game()
+            st.rerun()
+        return
+
+    # --- Dashboard ---
     target = st.session_state.target
-    st.markdown(f"### 🎯 目標元素 (Target Essence)")
-    st.latex(f"\\Huge \\mathbf{{{target.numerator}}} / \\mathbf{{{target.denominator}}}")
+    current = AlchemyEngine.calculate_current(st.session_state.history)
     
-    # --- Reactor Core (Visual Feedback) ---
-    current = game.calculate_current()
-    entropy = EntropyEngine.calculate_entropy(current)
+    # 視覺化對比
+    col_tgt, col_mid, col_cur = st.columns([1, 0.2, 1])
+    with col_tgt:
+        st.markdown(f"<div style='text-align:center;color:#94a3b8'>目標元素</div>", unsafe_allow_html=True)
+        st.latex(f"\\Huge \\frac{{{target.numerator}}}{{{target.denominator}}}")
+    with col_mid:
+        status_icon = "⚖️"
+        if current == target: status_icon = "✅"
+        elif st.session_state.game_status == 'lost': status_icon = "❌"
+        st.markdown(f"<div style='text-align:center;font-size:2.5rem;padding-top:10px'>{status_icon}</div>", unsafe_allow_html=True)
+    with col_cur:
+        cur_color = "#4ade80" if current == target else "#facc15"
+        st.markdown(f"<div style='text-align:center;color:#94a3b8'>當前混合物</div>", unsafe_allow_html=True)
+        st.latex(f"\\Huge \\color{{{cur_color}}}{{\\frac{{{current.numerator}}}{{{current.denominator}}}}}")
+
+    # --- Message Box ---
+    msg_cls = f"msg-{st.session_state.msg_type}"
+    st.markdown(f'<div class="status-msg {msg_cls}">{st.session_state.msg}</div>', unsafe_allow_html=True)
+
+    # --- Reactor (Visual Equation) ---
+    st.markdown("**📜 煉成反應式：**")
     
-    entropy_color = "red" if entropy > 80 else "green"
-    st.markdown(f"<p class='status-text' style='color:{entropy_color}'>Reactor Entropy: {int(entropy)}%</p>", unsafe_allow_html=True)
-    st.progress(min(entropy / 100, 1.0))
+    # 1. 生成不含 $$ 的 LaTeX
+    visual_latex = AlchemyEngine.generate_visual_cancellation(st.session_state.history)
     
-    box_class = "reactor-box reactor-critical" if entropy > 80 else "reactor-box"
-    st.markdown(f'<div class="{box_class}" style="background:#1e293b; padding:20px; border-radius:15px; text-align:center; min-height:150px;">', unsafe_allow_html=True)
+    # 2. 開啟容器
+    st.markdown('<div class="reactor-box">', unsafe_allow_html=True)
     
+    # 3. 渲染 LaTeX (自動處理符號)
+    # [修改點]: 移除前面的 '1'，避免產生 1 2/4 這種帶分數誤解
     if not st.session_state.history:
-        st.markdown("<h3 style='color:#64748b'>等待投入素材...</h3>", unsafe_allow_html=True)
-        # 空狀態顯示 1
-        st.latex(f"\\Large 1")
+        # 空的時候顯示 1
+        st.latex(f"\\Large 1 = \\frac{{{current.numerator}}}{{{current.denominator}}}")
     else:
-        # [修正]: 這裡不再顯示起始的 '1 \cdot'，僅顯示反應過程
-        process_tex = EntropyEngine.generate_latex_visualization(st.session_state.history)
-        st.latex(f"\\Large {process_tex} = \\frac{{{current.numerator}}}{{{current.denominator}}}")
-        
+        final_equation = f"\\Large {visual_latex} = \\frac{{{current.numerator}}}{{{current.denominator}}}"
+        st.latex(final_equation)
+    
+    # 4. 關閉容器
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- Game Area ---
-    if st.session_state.game_state == 'planning':
+    # --- Play Area ---
+    if st.session_state.game_status == 'playing':
+        st.write("👇 點擊素材投入反應爐：")
+        hand = st.session_state.hand
         
-        st.markdown("### 🎴 元素手牌 (Your Hand)")
-        cols = st.columns(6)
-        for i, card in enumerate(st.session_state.hand):
-            with cols[i % 6]:
-                if st.button(card.display, key=f"card_{card.id}", use_container_width=True):
-                    game.play_card(i)
-                    st.rerun()
-
-        col_undo, col_submit = st.columns([1, 2])
-        with col_undo:
-            if st.button("↩️ 撤銷 (Undo)", use_container_width=True):
-                game.undo_move()
-                st.rerun()
-                
-        with col_submit:
-            confidence = st.slider("🧪 煉成信心度 (Confidence)", 0, 100, 50, key="conf_slider")
-            if st.button("🔥 啟動鍊成陣 (Transmute)", type="primary", use_container_width=True):
-                game.submit_solution(confidence)
+        if hand:
+            cols = st.columns(4)
+            for i, card in enumerate(hand):
+                with cols[i % 4]:
+                    if st.button(card.display_text, key=f"card_{card.id}", use_container_width=True):
+                        game.play_card(i)
+                        st.rerun()
+        
+        if st.session_state.history:
+            st.markdown("---")
+            if st.button("↩️ 撤銷投入 (Undo)"):
+                game.undo()
                 st.rerun()
 
-    elif st.session_state.game_state == 'won':
-        st.success("✨ 煉成成功！元素完美平衡！")
-        st.balloons()
-        if st.button("🚀 前往下一層", type="primary"):
-            st.session_state.level += 1
-            game.load_level(st.session_state.level)
+    # --- Result Actions ---
+    elif st.session_state.game_status == 'won':
+        if st.button("🚀 前往下一層", type="primary", use_container_width=True):
+            game.next_level()
             st.rerun()
             
-    elif st.session_state.game_state == 'lost':
-        st.error(f"💥 煉成失敗！目標是 {target}，你煉出了 {current}")
-        if st.button("🔄 重試本關"):
-            game.load_level(st.session_state.level)
+    elif st.session_state.game_status == 'lost':
+        if st.button("💥 清理反應爐 (重試)", type="primary", use_container_width=True):
+            game.retry()
             st.rerun()
 
 if __name__ == "__main__":
