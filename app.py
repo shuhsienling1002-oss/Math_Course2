@@ -12,10 +12,10 @@ from typing import List, Tuple, Optional
 MAX_LEVEL = 5  # 總關卡數
 
 # ==========================================
-# 1. 核心配置與 CSS (保持原樣)
+# 1. 核心配置與 CSS
 # ==========================================
 st.set_page_config(
-    page_title="分數鍊金術 v2.2",
+    page_title="分數鍊金術 v2.3",
     page_icon="⚗️",
     layout="centered"
 )
@@ -77,7 +77,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. 領域模型 (Domain Model - 保持原樣)
+# 2. 領域模型 (Domain Model)
 # ==========================================
 
 @dataclass
@@ -134,7 +134,8 @@ class AlchemyEngine:
             
             card = MathCard(n, d, is_division=is_div)
             correct_cards.append(card)
-            # 計算目標值
+            
+            # [邏輯修復 Point 1]：這裡必須計算目標值，否則 target 永遠是 1，玩家無法獲勝
             if is_div:
                 target_val *= Fraction(d, n)
             else:
@@ -165,12 +166,11 @@ class AlchemyEngine:
     def generate_visual_cancellation(history: List[MathCard]) -> str:
         """
         生成帶有約分刪除線的 LaTeX
-        [修復]: 移除預設的 [1]，解決「幽靈數字 1」導致的帶分數誤解問題。
+        [保留]: 移除預設 [1] 邏輯，避免幽靈數字。
         """
         if not history: return "1"
 
-        # 1. 收集所有的分子與分母
-        # [修改點]: 這裡不再預設包含 1，改為空列表開始
+        # 1. 收集所有的分子與分母 (空列表開始)
         nums = []
         dens = []
         
@@ -229,14 +229,12 @@ class AlchemyEngine:
 
         # 組合部分
         full_raw = "".join(raw_latex_parts)
-        # 移除最開頭可能的乘號，讓視覺更乾淨
         if full_raw.startswith("\\times"): full_raw = full_raw[6:]
         
-        # 返回純 LaTeX 字符串
         return f"{full_raw} = \\frac{{{num_tex}}}{{{den_tex}}}"
 
 # ==========================================
-# 4. 狀態管理 (保持原樣)
+# 4. 狀態管理
 # ==========================================
 
 class GameState:
@@ -360,6 +358,7 @@ def main():
     col_tgt, col_mid, col_cur = st.columns([1, 0.2, 1])
     with col_tgt:
         st.markdown(f"<div style='text-align:center;color:#94a3b8'>目標元素</div>", unsafe_allow_html=True)
+        # [邏輯修復 Point 2]：確認 target 已正確計算並顯示
         st.latex(f"\\Huge \\frac{{{target.numerator}}}{{{target.denominator}}}")
     with col_mid:
         status_icon = "⚖️"
@@ -378,22 +377,17 @@ def main():
     # --- Reactor (Visual Equation) ---
     st.markdown("**📜 煉成反應式：**")
     
-    # 1. 生成不含 $$ 的 LaTeX
     visual_latex = AlchemyEngine.generate_visual_cancellation(st.session_state.history)
     
-    # 2. 開啟容器
     st.markdown('<div class="reactor-box">', unsafe_allow_html=True)
     
-    # 3. 渲染 LaTeX (自動處理符號)
-    # [修改點]: 移除前面的 '1'，避免產生 1 2/4 這種帶分數誤解
+    # 這裡移除前面的 '1'，避免產生帶分數誤解
     if not st.session_state.history:
-        # 空的時候顯示 1
         st.latex(f"\\Large 1 = \\frac{{{current.numerator}}}{{{current.denominator}}}")
     else:
         final_equation = f"\\Large {visual_latex} = \\frac{{{current.numerator}}}{{{current.denominator}}}"
         st.latex(final_equation)
     
-    # 4. 關閉容器
     st.markdown('</div>', unsafe_allow_html=True)
 
     # --- Play Area ---
@@ -415,7 +409,8 @@ def main():
                 game.undo()
                 st.rerun()
 
-    # --- Result Actions ---
+    # --- Result Actions (下一關選項) ---
+    # [邏輯修復 Point 3]：當狀態為 won 時，顯示前往下一層按鈕
     elif st.session_state.game_status == 'won':
         if st.button("🚀 前往下一層", type="primary", use_container_width=True):
             game.next_level()
