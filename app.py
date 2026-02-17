@@ -15,7 +15,7 @@ MAX_LEVEL = 5  # 總關卡數
 # 1. 核心配置與 CSS
 # ==========================================
 st.set_page_config(
-    page_title="分數鍊金術 v2.1",
+    page_title="分數鍊金術 v2.2",
     page_icon="⚗️",
     layout="centered"
 )
@@ -30,7 +30,7 @@ st.markdown("""
         background-color: #38bdf8;
     }
 
-    /* 煉成反應爐 (公式區容器) - 修正後僅作為背景容器 */
+    /* 煉成反應爐 (公式區容器) */
     .reactor-box {
         background: #1e293b;
         border: 2px solid #475569;
@@ -85,7 +85,7 @@ class MathCard:
     numerator: int
     denominator: int
     is_division: bool = False
-    # [Risk Fix]: 使用 uuid 避免 ID 碰撞
+    # 使用 uuid 避免 ID 碰撞
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
     @property
@@ -104,7 +104,7 @@ class MathCard:
         return f"{op} {n_display}/{self.denominator}"
 
 # ==========================================
-# 3. 鍊金引擎 (Logic Layer - Zero Entropy)
+# 3. 鍊金引擎 (Logic Layer)
 # ==========================================
 
 class AlchemyEngine:
@@ -229,7 +229,7 @@ class AlchemyEngine:
         full_raw = "".join(raw_latex_parts)
         if full_raw.startswith("\\times"): full_raw = full_raw[6:]
         
-        # [Fix] 這裡不加 $$，只返回純 LaTeX 字符串
+        # 返回純 LaTeX 字符串 (不含 $$)
         return f"1 {full_raw} = \\frac{{{num_tex}}}{{{den_tex}}}"
 
 # ==========================================
@@ -276,6 +276,10 @@ class GameState:
             st.session_state.game_status = 'playing'
             st.session_state.msg = "時光回溯：已撤銷上一步"
             st.session_state.msg_type = 'info'
+
+    # [FIX] 補回遺失的 retry 方法，解決 AttributeError
+    def retry(self):
+        self.start_level(st.session_state.level)
 
     def _check_status(self):
         current = AlchemyEngine.calculate_current(st.session_state.history)
@@ -373,17 +377,17 @@ def main():
     # --- Reactor (Visual Equation) ---
     st.markdown("**📜 煉成反應式：**")
     
-    # [FIX] 這是修正後的渲染邏輯：
+    # 1. 生成不含 $$ 的 LaTeX
     visual_latex = AlchemyEngine.generate_visual_cancellation(st.session_state.history)
     
-    # 1. 先開啟反應爐的 DIV
+    # 2. 開啟容器
     st.markdown('<div class="reactor-box">', unsafe_allow_html=True)
     
-    # 2. 使用 st.latex 渲染純數學公式 (它會自動處理 $$)
+    # 3. 渲染 LaTeX (自動處理符號)
     final_equation = f"{visual_latex} = \\frac{{{current.numerator}}}{{{current.denominator}}}"
     st.latex(final_equation)
     
-    # 3. 關閉 DIV
+    # 4. 關閉容器
     st.markdown('</div>', unsafe_allow_html=True)
 
     # --- Play Area ---
