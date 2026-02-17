@@ -120,32 +120,32 @@ class EntropyEngine:
         """
         Model 1: 第一性原理視覺化
         生成帶有顏色標記的 LaTeX，模擬化學反應過程
+        [修正]: 移除預設的 '1'，僅在完全空的時候顯示 1，否則顯示純粹的成分。
         """
         if not history: return "1"
 
-        # 構建分子分母列表
-        nums, dens = [1], [1]
-        raw_ops = []
+        # 構建分子分母列表，不再預設包含 1
+        nums = []
+        dens = []
         
         for card in history:
             n, d = card.numerator, card.denominator
             if card.type == "antimatter":
                 nums.append(d)
                 dens.append(n)
-                raw_ops.append(f"\\div \\frac{{{n}}}{{{d}}}")
             else:
                 nums.append(n)
                 dens.append(d)
-                raw_ops.append(f"\\times \\frac{{{n}}}{{{d}}}")
 
         # 智能約分標記 (尋找公因數)
-        # 這裡僅做簡單視覺化：如果分子分母有相同絕對值的數，標記為紅色刪除線
+        # Model 10: 奧卡姆剃刀 - 標記可消除的冗餘
         cancel_n = [False] * len(nums)
         cancel_d = [False] * len(dens)
         
-        for i in range(1, len(nums)):
-            for j in range(1, len(dens)):
-                if not cancel_d[j] and abs(nums[i]) == abs(dens[j]):
+        # 簡單貪婪匹配約分 (視覺用)
+        for i in range(len(nums)):
+            for j in range(len(dens)):
+                if not cancel_d[j] and not cancel_n[i] and abs(nums[i]) == abs(dens[j]):
                     cancel_n[i] = True
                     cancel_d[j] = True
                     break
@@ -158,12 +158,13 @@ class EntropyEngine:
                 return f"\\color{{{color}}}{{\\cancel{{{s_val}}}}}"
             return s_val
 
-        num_tex = " \\cdot ".join([fmt(nums[i], cancel_n[i]) for i in range(1, len(nums))])
-        den_tex = " \\cdot ".join([fmt(dens[i], cancel_d[i]) for i in range(1, len(dens))])
-        
-        if not num_tex: num_tex = "1"
-        if not den_tex: den_tex = "1"
+        # 如果列表為空 (防禦性編程)，補 1
+        if not nums: nums = [1]
+        if not dens: dens = [1]
 
+        num_tex = " \\cdot ".join([fmt(nums[i], cancel_n[i]) for i in range(len(nums))])
+        den_tex = " \\cdot ".join([fmt(dens[i], cancel_d[i]) for i in range(len(dens))])
+        
         return f"\\frac{{{num_tex}}}{{{den_tex}}}"
 
 # ==========================================
@@ -199,7 +200,6 @@ class AlchemyGame:
         }
         cfg = config.get(level, config[5])
         
-        # 逆向生成保證有解 (Model 9: 逆向思維)
         target = Fraction(1, 1)
         hand = []
         
@@ -263,14 +263,14 @@ class AlchemyGame:
         
         if is_correct:
             base_score = 100
-            # 熵值獎勵：如果在低熵狀態下完成 (Model 10: 奧卡姆剃刀)
+            # 熵值獎勵
             final_entropy = EntropyEngine.calculate_entropy(current)
             entropy_bonus = 50 if final_entropy < 30 else 0
             
             # 信心獎勵
             conf_bonus = 0
             if confidence > 80: conf_bonus = 20
-            elif confidence < 30: conf_bonus = -10 # 對自己沒信心但對了，運氣分
+            elif confidence < 30: conf_bonus = -10
             
             total_gain = base_score + entropy_bonus + conf_bonus
             st.session_state.score += total_gain
@@ -278,7 +278,6 @@ class AlchemyGame:
             st.session_state.game_state = 'won'
             
         else:
-            # 懲罰
             st.session_state.combo = 0
             st.session_state.game_state = 'lost'
             if confidence > 80:
@@ -306,35 +305,33 @@ def main():
     # --- Target & Goal (The Objective) ---
     target = st.session_state.target
     st.markdown(f"### 🎯 目標元素 (Target Essence)")
-    # 使用 LaTeX 顯示目標，強調數值美學
     st.latex(f"\\Huge \\mathbf{{{target.numerator}}} / \\mathbf{{{target.denominator}}}")
     
     # --- Reactor Core (Visual Feedback) ---
     current = game.calculate_current()
     entropy = EntropyEngine.calculate_entropy(current)
     
-    # 熵值計量條 (Model 2)
     entropy_color = "red" if entropy > 80 else "green"
     st.markdown(f"<p class='status-text' style='color:{entropy_color}'>Reactor Entropy: {int(entropy)}%</p>", unsafe_allow_html=True)
     st.progress(min(entropy / 100, 1.0))
     
-    # 反應式可視化
     box_class = "reactor-box reactor-critical" if entropy > 80 else "reactor-box"
     st.markdown(f'<div class="{box_class}" style="background:#1e293b; padding:20px; border-radius:15px; text-align:center; min-height:150px;">', unsafe_allow_html=True)
     
     if not st.session_state.history:
         st.markdown("<h3 style='color:#64748b'>等待投入素材...</h3>", unsafe_allow_html=True)
+        # 空狀態顯示 1
+        st.latex(f"\\Large 1")
     else:
-        # 顯示化學鍵斷裂 (約分過程)
+        # [修正]: 這裡不再顯示起始的 '1 \cdot'，僅顯示反應過程
         process_tex = EntropyEngine.generate_latex_visualization(st.session_state.history)
-        st.latex(f"\\Large 1 \\cdot {process_tex} = \\frac{{{current.numerator}}}{{{current.denominator}}}")
+        st.latex(f"\\Large {process_tex} = \\frac{{{current.numerator}}}{{{current.denominator}}}")
         
     st.markdown('</div>', unsafe_allow_html=True)
 
     # --- Game Area ---
     if st.session_state.game_state == 'planning':
         
-        # 1. 玩家手牌 (Player Hand)
         st.markdown("### 🎴 元素手牌 (Your Hand)")
         cols = st.columns(6)
         for i, card in enumerate(st.session_state.hand):
@@ -343,7 +340,6 @@ def main():
                     game.play_card(i)
                     st.rerun()
 
-        # 2. 控制區
         col_undo, col_submit = st.columns([1, 2])
         with col_undo:
             if st.button("↩️ 撤銷 (Undo)", use_container_width=True):
@@ -351,13 +347,11 @@ def main():
                 st.rerun()
                 
         with col_submit:
-            # Model 16: 貝葉斯信心滑桿
             confidence = st.slider("🧪 煉成信心度 (Confidence)", 0, 100, 50, key="conf_slider")
             if st.button("🔥 啟動鍊成陣 (Transmute)", type="primary", use_container_width=True):
                 game.submit_solution(confidence)
                 st.rerun()
 
-    # --- Result Area ---
     elif st.session_state.game_state == 'won':
         st.success("✨ 煉成成功！元素完美平衡！")
         st.balloons()
