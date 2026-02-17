@@ -15,7 +15,7 @@ MAX_LEVEL = 5  # 總關卡數
 # 1. 核心配置與 CSS
 # ==========================================
 st.set_page_config(
-    page_title="分數鍊金術 v2.0",
+    page_title="分數鍊金術 v2.1",
     page_icon="⚗️",
     layout="centered"
 )
@@ -30,12 +30,12 @@ st.markdown("""
         background-color: #38bdf8;
     }
 
-    /* 煉成反應爐 (公式區) */
+    /* 煉成反應爐 (公式區容器) - 修正後僅作為背景容器 */
     .reactor-box {
         background: #1e293b;
         border: 2px solid #475569;
         border-radius: 12px;
-        padding: 20px;
+        padding: 10px;
         margin: 15px 0;
         box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
         text-align: center;
@@ -60,10 +60,6 @@ st.markdown("""
         transform: translateY(1px);
     }
     
-    /* 特殊卡牌顏色標記 */
-    .div-card { border-color: #f472b6 !important; color: #f472b6 !important; }
-    .neg-card { border-color: #f87171 !important; color: #f87171 !important; }
-
     /* 狀態提示 */
     .status-msg {
         text-align: center;
@@ -168,8 +164,7 @@ class AlchemyEngine:
     @staticmethod
     def generate_visual_cancellation(history: List[MathCard]) -> str:
         """
-        [Core Feature]: 生成帶有約分刪除線的 LaTeX
-        這就是『鍊金術』的視覺化過程：顯示雜質如何被消除。
+        生成帶有約分刪除線的 LaTeX
         """
         if not history: return "1"
 
@@ -185,22 +180,17 @@ class AlchemyEngine:
                 # 除法：視覺上顯示翻轉
                 nums.append(d)
                 dens.append(n)
-                # 負號處理：若 d 為負，移到分子顯示比較好看
-                disp_n = d
-                disp_d = n
+                # 負號處理
                 raw_latex_parts.append(f"\\div \\frac{{{n}}}{{{d}}}")
             else:
                 nums.append(n)
                 dens.append(d)
                 raw_latex_parts.append(f"\\times \\frac{{{n}}}{{{d}}}")
 
-        # 2. 找尋公因數並標記約分
-        # 簡單算法：貪婪匹配
+        # 2. 找尋公因數並標記約分 (視覺標記)
         cancel_map_n = [False] * len(nums)
         cancel_map_d = [False] * len(dens)
         
-        # 這裡只做簡單的數值匹配約分展示 (視覺效果)
-        # 真實數學約分比較複雜，這裡為了遊戲體驗，我們標記「絕對值相同」的數
         for i in range(len(nums)):
             for j in range(len(dens)):
                 if not cancel_map_d[j] and abs(nums[i]) == abs(dens[j]) and abs(nums[i]) != 1:
@@ -209,40 +199,37 @@ class AlchemyEngine:
                     break
         
         # 3. 生成合併後的 LaTeX
-        # 分子部分
+        # 分子
         num_tex = ""
         for i, val in enumerate(nums):
-            if i == 0 and val == 1 and len(nums)>1: continue # 省略起頭的 1
-            
+            if i == 0 and val == 1 and len(nums)>1: continue 
             s_val = f"({val})" if val < 0 else f"{val}"
             if cancel_map_n[i]:
                 num_tex += f" \\cancel{{{s_val}}} \\cdot"
             else:
                 num_tex += f" {s_val} \\cdot"
         
-        # 分母部分
+        # 分母
         den_tex = ""
         for i, val in enumerate(dens):
             if i == 0 and val == 1 and len(dens)>1: continue
-            
             s_val = f"({val})" if val < 0 else f"{val}"
             if cancel_map_d[i]:
                 den_tex += f" \\cancel{{{s_val}}} \\cdot"
             else:
                 den_tex += f" {s_val} \\cdot"
 
-        # 移除末尾的 \cdot
         num_tex = num_tex.rstrip(" \\cdot")
         den_tex = den_tex.rstrip(" \\cdot")
         
         if not num_tex: num_tex = "1"
         if not den_tex: den_tex = "1"
 
-        # 組合： 原始算式 = 合併算式
+        # 組合部分
         full_raw = "".join(raw_latex_parts)
-        # 去掉第一個乘號若存在
         if full_raw.startswith("\\times"): full_raw = full_raw[6:]
         
+        # [Fix] 這裡不加 $$，只返回純 LaTeX 字符串
         return f"1 {full_raw} = \\frac{{{num_tex}}}{{{den_tex}}}"
 
 # ==========================================
@@ -303,7 +290,7 @@ class GameState:
             st.session_state.msg = "🌑 煉成失敗：素材耗盡，無法達成目標。"
             st.session_state.msg_type = 'error'
         else:
-            # 實時鷹架回饋 (Scaffolding)
+            # Scaffolding
             if (current > 0 > target) or (current < 0 < target):
                 st.session_state.msg = "⚠️ 極性錯誤！正負號相反，請投入負數素材。"
                 st.session_state.msg_type = 'warn'
@@ -385,16 +372,19 @@ def main():
 
     # --- Reactor (Visual Equation) ---
     st.markdown("**📜 煉成反應式：**")
-    # [Highlight]: 使用視覺化約分函數
+    
+    # [FIX] 這是修正後的渲染邏輯：
     visual_latex = AlchemyEngine.generate_visual_cancellation(st.session_state.history)
     
-    st.markdown(f"""
-    <div class="reactor-box">
-        <div style="font-size: 1.2rem; overflow-x: auto;">
-        $${visual_latex} = \\frac{{{current.numerator}}}{{{current.denominator}}}$$
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    # 1. 先開啟反應爐的 DIV
+    st.markdown('<div class="reactor-box">', unsafe_allow_html=True)
+    
+    # 2. 使用 st.latex 渲染純數學公式 (它會自動處理 $$)
+    final_equation = f"{visual_latex} = \\frac{{{current.numerator}}}{{{current.denominator}}}"
+    st.latex(final_equation)
+    
+    # 3. 關閉 DIV
+    st.markdown('</div>', unsafe_allow_html=True)
 
     # --- Play Area ---
     if st.session_state.game_status == 'playing':
@@ -405,7 +395,6 @@ def main():
             cols = st.columns(4)
             for i, card in enumerate(hand):
                 with cols[i % 4]:
-                    # 根據卡牌類型給予不同樣式提示 (但主要還是靠按鈕文字)
                     if st.button(card.display_text, key=f"card_{card.id}", use_container_width=True):
                         game.play_card(i)
                         st.rerun()
